@@ -1,0 +1,105 @@
+#!@python@ -I
+"""Host de mensajería nativa «bruma.extensiones» (ver README.md).
+
+La extensión propia de Bruma le pide instalar extensiones de Chrome:
+- {"accion": "instalar-chrome", "id"}: la descarga de la Chrome Web Store;
+- {"accion": "instalar-edge", "id"}: la descarga de la tienda de Edge;
+- {"accion": "instalar-crx", "ruta"}: usa un .crx ya descargado.
+En todos los casos la adapta a Gecko (extensiones_chrome.py) y abre la
+instalación en Bruma, que muestra su cartel «¿Agregar …?».
+"""
+import json
+import os
+import re
+import struct
+import subprocess
+import sys
+from pathlib import Path
+
+BRUMA = "@bruma@"
+MAXIMO = 1024 * 1024
+sys.path.insert(0, "@libexec@")
+
+import extensiones_chrome  # noqa: E402
+
+
+def leer_mensaje():
+    cabecera = sys.stdin.buffer.read(4)
+    if len(cabecera) != 4:
+        return None
+    (largo,) = struct.unpack("@I", cabecera)
+    if largo > MAXIMO:
+        return None
+    return json.loads(sys.stdin.buffer.read(largo).decode("utf-8"))
+
+
+def responder(datos):
+    cuerpo = json.dumps(datos).encode("utf-8")
+    sys.stdout.buffer.write(struct.pack("@I", len(cuerpo)) + cuerpo)
+    sys.stdout.buffer.flush()
+
+
+def entorno_limpio():
+    # El navegador le deja al host su LD_LIBRARY_PATH, GTK_PATH y variables
+    # MOZ_*; el lanzador arranca con el entorno de la sesión.
+    quitar = ("LD_LIBRARY_PATH", "LD_PRELOAD", "GTK_PATH", "GDK_BACKEND")
+    return {
+        clave: valor
+        for clave, valor in os.environ.items()
+        if clave not in quitar and not clave.startswith(("MOZ_", "GNOME_DESKTOP_STARTUP"))
+    }
+
+
+def abrir_instalacion(ruta_xpi):
+    """Le pasa el XPI a Bruma (la ventana abierta), que pide confirmación."""
+    subprocess.Popen(
+        [BRUMA, "--", Path(ruta_xpi).as_uri()],
+        env=entorno_limpio(),
+        cwd=os.path.expanduser("~"),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+
+
+def atender(mensaje):
+    if not isinstance(mensaje, dict):
+        return {"ok": False, "error": "pedido inválido"}
+    accion = mensaje.get("accion")
+    tienda = None
+    if accion in ("instalar-chrome", "instalar-edge"):
+        origen = mensaje.get("id")
+        if not isinstance(origen, str) or not re.fullmatch(r"[a-p]{32}", origen):
+            return {"ok": False, "error": "ID de extensión inválido"}
+        tienda = accion.removeprefix("instalar-")
+    elif accion == "instalar-crx":
+        origen = mensaje.get("ruta")
+        if (
+            not isinstance(origen, str)
+            or not os.path.isabs(origen)
+            or not origen.lower().endswith(".crx")
+            or not os.path.isfile(origen)
+        ):
+            return {"ok": False, "error": "no encontré el archivo .crx descargado"}
+    else:
+        return {"ok": False, "error": "pedido inválido"}
+    try:
+        ruta_xpi, info = extensiones_chrome.preparar(origen, tienda)
+    except extensiones_chrome.ErrorExtension as error:
+        return {"ok": False, "error": str(error)}
+    abrir_instalacion(ruta_xpi)
+    return {"ok": True, **info}
+
+
+def main():
+    try:
+        mensaje = leer_mensaje()
+    except (ValueError, UnicodeDecodeError):
+        mensaje = None
+    responder(atender(mensaje))
+
+
+if __name__ == "__main__":
+    main()

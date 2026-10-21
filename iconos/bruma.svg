@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Bruma: el contorno del globo (la web) se desarma en jirones de niebla -->
+  <defs>
+    <radialGradient id="cielo" cx="0.4" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#8f80ff"/>
+      <stop offset="0.6" stop-color="#5140d0"/>
+      <stop offset="1" stop-color="#33268f"/>
+    </radialGradient>
+    <linearGradient id="jiron" gradientUnits="userSpaceOnUse" x1="30" y1="0" x2="116" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="desvanecer" gradientUnits="userSpaceOnUse" x1="0" y1="28" x2="0" y2="66">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#cielo)"/>
+
+  <!-- meridiano y paralelo, que se pierden hacia abajo -->
+  <g fill="none" stroke="url(#desvanecer)" stroke-linecap="round" stroke-width="4.5">
+    <path d="M50 64 A14 36 0 0 1 78 64"/>
+    <path d="M35 46 Q64 53 93 46"/>
+  </g>
+  <!-- contorno: de la derecha, por arriba, baja por la izquierda... -->
+  <path d="M97.4 55 A34 34 0 0 0 30 62 A34 34 0 0 0 33.5 77"
+        fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <!-- ...y se vuelve niebla -->
+  <g fill="none" stroke="url(#jiron)" stroke-linecap="round">
+    <path d="M33.5 77 C37 82 44 83 56 81 S86 76 114 79" stroke-width="7"/>
+    <path d="M44 90 C56 88 70 93 84 91 S100 88 108 90" stroke-width="6" stroke-opacity="0.8"/>
+    <path d="M57 101 C66 99 76 103 96 100" stroke-width="5" stroke-opacity="0.6"/>
+  </g>
+  <circle cx="64" cy="64" r="57" fill="none" stroke="#b9b0ff" stroke-opacity="0.45" stroke-width="2"/>
+</svg>

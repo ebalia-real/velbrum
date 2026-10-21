@@ -1,0 +1,6 @@
+# Copias de seguridad locales y archivos generados
+*.before-*
+__pycache__/
+*.pyc
+result
+result-*

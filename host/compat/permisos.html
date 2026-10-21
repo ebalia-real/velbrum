@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Bruma: permiso pendiente</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 34rem; margin: 12vh auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.4rem; }
+    button { font: inherit; padding: .6rem 1.2rem; border-radius: .5rem; border: 0;
+             background: #4232b8; color: #fff; cursor: pointer; }
+    #estado { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>«<span id="nombre"></span>» necesita un permiso más</h1>
+  <p>Esta extensión viene de la tienda de Chrome. Usa <strong id="lista"></strong>, un permiso que
+     en Bruma, por seguridad, tenés que confirmar vos (en Chrome se activa en la configuración de
+     la extensión). Sin él la extensión queda instalada pero no puede hacer su trabajo.</p>
+  <p>Al tocar «Permitir», el navegador muestra un cartel: <strong>marcá la casilla</strong> de
+     confirmación y después tocá «Permitir» en el cartel.</p>
+  <button id="permitir">Permitir</button>
+  <p id="estado"></p>
+  <script src="permisos.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 2,
+  "name": "Bruma",
+  "version": "2.1",
+  "description": "Instala en Bruma las extensiones de Chrome: desde la Chrome Web Store, la tienda de Edge o cualquier archivo .crx que descargues.",
+  "browser_specific_settings": {
+    "gecko": { "id": "chrome@bruma", "strict_min_version": "128.0" }
+  },
+  "permissions": ["nativeMessaging", "downloads", "notifications"],
+  "background": { "scripts": ["background.js"] },
+  "content_scripts": [
+    {
+      "matches": ["https://chromewebstore.google.com/*"],
+      "js": ["aviso.js", "tienda.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://microsoftedge.microsoft.com/addons/*"],
+      "js": ["aviso.js", "edge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": { "48": "iconos/bruma-48.png", "96": "iconos/bruma-96.png" }
+}
