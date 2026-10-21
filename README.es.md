@@ -37,7 +37,7 @@
 | ⚙️ **Botón «Bruma»** | Nivel de seguridad (Estándar, Más seguro, El más seguro), bordes de privacidad, siempre privado, modo liviano y solo extensiones firmadas, en la barra de herramientas. |
 | 🔒 **DNS cifrado** | DNS por HTTPS solo con Quad9, con excepciones para tu red local. |
 | 🪶 **Modo liviano** | Menos procesos y caché para computadoras con poca memoria; se activa solo con menos de 4 GB de RAM. |
-| 🔄 **Siempre al día** | No compila nada: usa el LibreWolf del caché de NixOS y recibe los parches de seguridad de Firefox con cada actualización del sistema. |
+| 🔄 **Actualizaciones con un clic** | Bruma busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
 
 > Bruma es un proyecto independiente: no está hecho ni respaldado por Mozilla,
 > LibreWolf, Mullvad ni el Tor Project. Firefox, LibreWolf, Mullvad, Tor y Chrome
@@ -286,6 +286,55 @@ sitios de noticias). Con 2 GB de RAM funciona bien con pocas pestañas (mejor co
 un escritorio liviano como XFCE o LXQt); con 1 GB ningún navegador moderno anda
 cómodo.
 
+## Actualizaciones
+
+- **Versiones nuevas de Bruma**: una vez por día Bruma busca una versión nueva
+  en GitHub. Si la hay, una barra ofrece **Instalar y reiniciar** o **Ahora
+  no**. Instalar pide la contraseña de administrador; el ayudante
+  `bruma-actualizar` baja la versión, comprueba que esté **firmada con la clave
+  de Bruma** (la clave pública sale del paquete instalado, no de la descarga),
+  lleva la carpeta de Bruma a esa versión y actualiza el sistema. Después,
+  **Reiniciar ahora** vuelve a abrir Bruma en la versión nueva con tus
+  pestañas. Botón «Bruma» → *Buscar actualizaciones* busca en el momento.
+- **Después de tus propias actualizaciones** (por ejemplo `nix flake update`
+  para los parches de seguridad de Firefox), Bruma nota la versión nueva y
+  ofrece reiniciar.
+- **Requisitos**: la carpeta de Bruma es un clon de git (como en
+  [Instalación](#instalación)) sin cambios locales. El comando por defecto es
+  `nixos-rebuild switch`, que en sistemas con flakes usa `/etc/nixos`.
+- **Opciones**:
+
+  ```nix
+  bruma.actualizador.buscar = false;                       # no conectarse a GitHub
+  bruma.actualizador.repositorio = "ebalia-real/bruma";    # de dónde salen las versiones
+  bruma.actualizador.carpeta = "/etc/nixos/bruma";         # el clon de git que se actualiza
+  bruma.actualizador.comando = "/run/current-system/sw/bin/nixos-rebuild switch";
+  ```
+
+- **Seguridad**: solo se instalan etiquetas `vAAAA.MM.DD` firmadas con una clave
+  de `firmas/claves-permitidas`, y la etiqueta tiene que coincidir con su
+  archivo `VERSION`. Git corre con el dueño de la carpeta, nunca como root, y sin
+  ganchos, así nada de lo que haya en el repositorio corre con permisos de
+  administrador; como root solo corre la actualización del sistema. Si la
+  carpeta tiene cambios locales, no se toca nada. Registro:
+  `/var/log/bruma-actualizar.log`.
+
+<details>
+<summary><b>Publicar una versión (para quien mantiene Bruma)</b></summary>
+
+1. Sube el número de `VERSION` (por ejemplo `2026.10.22`, o `2026.10.22.1` para
+   una segunda versión ese día) y haz commit.
+2. Crea una etiqueta firmada con la clave de versiones (la de
+   `firmas/claves-permitidas`):
+
+   ```bash
+   git -c gpg.format=ssh -c user.signingkey=~/.ssh/bruma-firma.pub tag -s v2026.10.22 -m "Bruma 2026.10.22"
+   ```
+
+3. Sube el commit y la etiqueta: `git push origin main v2026.10.22`.
+
+</details>
+
 ## Lo que Bruma no puede ocultar
 
 Ningún navegador es totalmente privado. Bruma protege lo que pasa dentro del
@@ -298,9 +347,11 @@ navegador, pero:
   sitios puede leer las páginas que abres.
 - **Conexiones automáticas**: los servicios de Mozilla que LibreWolf mantiene
   (listas de bloqueo, revocación de certificados, actualizaciones de
-  complementos) y, una vez al día, la tienda de Chrome o de Edge para buscar
-  versiones nuevas de tus extensiones de Chrome (ven tu IP y los ID de esas
-  extensiones; con las firmas exigidas esa búsqueda no se hace).
+  complementos); una vez al día, GitHub para buscar una versión nueva de Bruma
+  (ve tu IP; `bruma.actualizador.buscar = false` lo apaga); y una vez al día,
+  la tienda de Chrome o de Edge para buscar versiones nuevas de tus extensiones
+  de Chrome (ven tu IP y los ID de esas extensiones; con las firmas exigidas esa
+  búsqueda no se hace).
 - **Huella**: coincide con la de Mullvad Browser salvo la versión de Firefox y
   dos detalles que dependen de ella; alcanza para que un sitio sepa que no usas
   Mullvad ni Tor Browser, y los usuarios de Bruma son pocos.
@@ -363,7 +414,8 @@ muestra un aviso (`AVISO`) sin cortar la actualización del sistema.
 | `gecko/ajustes.cfg` | Los ajustes de Mullvad Browser que se suman a los de LibreWolf. |
 | `lanzador.sh` | El comando `bruma` (con la ventana con Tor). |
 | `extension/` | La extensión de Bruma: los botones de las tiendas y la instalación de `.crx`. |
-| `host/` | Host nativo y conversor de extensiones de Chrome, capa de compatibilidad, cambio de país de Tor. |
+| `host/` | Host nativo y conversor de extensiones de Chrome, capa de compatibilidad, cambio de país de Tor, y el actualizador (`actualizar.sh` y su acción de polkit). |
+| `VERSION`, `firmas/` | La versión de Bruma y las claves públicas que pueden firmar versiones. |
 | `marca/` | La marca, el botón «Bruma» (`ajustes-bruma.sys.mjs`) y los scripts que los aplican. |
 | `iconos/` | El logo: un globo (la web) que se desarma en jirones de niebla. |
 | `pruebas/seguridad.py` | Pruebas de seguridad del conversor de extensiones. |

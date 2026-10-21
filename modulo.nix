@@ -22,9 +22,41 @@ let
   bruma = import ./. {
     inherit pkgs idiomas;
     inherit (cfg) extensionesDeChrome dominiosLocales;
+    repoActualizaciones = lib.optionalString cfg.actualizador.buscar cfg.actualizador.repositorio;
+    carpetaBruma = cfg.actualizador.carpeta;
+    comandoActualizar = cfg.actualizador.comando;
   };
 in
 {
+  options.bruma.actualizador = {
+    buscar = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Que Bruma busque una vez por día si hay una versión nueva (firmada) en
+        GitHub y ofrezca instalarla (pide la contraseña de administrador) y
+        reiniciar. Con false no se conecta a GitHub; igual ofrece reiniciar
+        cuando un rebuild instala una versión nueva.
+      '';
+    };
+    repositorio = lib.mkOption {
+      type = lib.types.str;
+      default = "ebalia-real/bruma";
+      description = "Repositorio de GitHub (dueño/nombre) del que salen las versiones de Bruma.";
+    };
+    carpeta = lib.mkOption {
+      type = lib.types.str;
+      default = "/etc/nixos/bruma";
+      description = "La carpeta de Bruma (un clon de git) que el actualizador lleva a la versión nueva.";
+    };
+    comando = lib.mkOption {
+      type = lib.types.str;
+      default = "/run/current-system/sw/bin/nixos-rebuild switch";
+      example = "/run/current-system/sw/bin/nixos-rebuild switch --flake /etc/nixos#mi-pc";
+      description = "Comando (como root) que aplica la versión nueva después de actualizar la carpeta.";
+    };
+  };
+
   options.bruma.dominiosLocales = lib.mkOption {
     type = lib.types.listOf lib.types.str;
     default = [ "lan" "home" "home.arpa" "internal" "localdomain" ];

@@ -37,7 +37,7 @@
 | ⚙️ **Bruma button** | Security level (Standard, Safer, Safest), privacy borders, always private, light mode and signed-extensions-only, right in the toolbar. |
 | 🔒 **Encrypted DNS** | DNS over HTTPS with Quad9 only, with exceptions for your local network. |
 | 🪶 **Light mode** | Fewer processes and less cache for computers with little memory; turns on by itself below 4 GB of RAM. |
-| 🔄 **Always up to date** | Nothing is compiled: it uses the LibreWolf build from the NixOS cache and gets Firefox security fixes with every system update. |
+| 🔄 **Updates in one click** | Bruma checks for new **signed** versions once a day and installs them if you accept (administrator password), then restarts with your tabs. Firefox security fixes arrive with every system update; nothing is compiled. |
 
 > Bruma is an independent project. It is not made or endorsed by Mozilla, LibreWolf,
 > Mullvad or the Tor Project. Firefox, LibreWolf, Mullvad, Tor and Chrome are
@@ -274,6 +274,52 @@ light tabs and about 1.6 GB with six heavy ones (YouTube, Reddit, news sites).
 With 2 GB of RAM Bruma works well with a few tabs (better with a light desktop
 such as XFCE or LXQt); with 1 GB no modern browser is comfortable.
 
+## Updates
+
+- **New versions of Bruma**: once a day Bruma looks for a new version on
+  GitHub. If there is one, a bar offers **Install and restart** or **Not now**.
+  Installing asks for the administrator password; the `bruma-actualizar` helper
+  downloads the version, checks that it is **signed with Bruma's key** (the
+  public key comes from the installed package, not from the download), moves
+  the Bruma folder to that version and rebuilds the system. Then **Restart now**
+  reopens Bruma in the new version with your tabs. Bruma button → *Buscar
+  actualizaciones* checks right away.
+- **After your own rebuilds** (for example `nix flake update` for Firefox
+  security fixes), Bruma notices the new version and offers to restart.
+- **Requirements**: the Bruma folder is a git clone (as in
+  [Installation](#installation)) without local changes. The default command is
+  `nixos-rebuild switch`, which on flake systems uses `/etc/nixos`.
+- **Settings**:
+
+  ```nix
+  bruma.actualizador.buscar = false;                       # don't contact GitHub
+  bruma.actualizador.repositorio = "ebalia-real/bruma";    # where versions come from
+  bruma.actualizador.carpeta = "/etc/nixos/bruma";         # the git clone to update
+  bruma.actualizador.comando = "/run/current-system/sw/bin/nixos-rebuild switch";
+  ```
+
+- **Security**: only `vYYYY.MM.DD` tags signed with a key listed in
+  `firmas/claves-permitidas` are installed, and the tag must match its
+  `VERSION` file. Git runs as the folder's owner, never as root, with hooks
+  disabled, so nothing inside the repository runs with administrator rights;
+  only the rebuild runs as root. If the folder has local changes, nothing is
+  touched. Log: `/var/log/bruma-actualizar.log`.
+
+<details>
+<summary><b>Publishing a version (maintainers)</b></summary>
+
+1. Bump `VERSION` (for example `2026.10.22`, or `2026.10.22.1` for a second
+   one that day) and commit.
+2. Create a tag signed with the release key (the one in `firmas/claves-permitidas`):
+
+   ```bash
+   git -c gpg.format=ssh -c user.signingkey=~/.ssh/bruma-firma.pub tag -s v2026.10.22 -m "Bruma 2026.10.22"
+   ```
+
+3. Push the commit and the tag: `git push origin main v2026.10.22`.
+
+</details>
+
 ## What Bruma can't hide
 
 No browser is fully private. Bruma protects what happens inside the browser, but:
@@ -284,9 +330,11 @@ No browser is fully private. Bruma protects what happens inside the browser, but
 - **Extensions**: every extension changes your fingerprint, and one with access
   to all sites can read the pages you open.
 - **Automatic connections**: the Mozilla services LibreWolf keeps (block lists,
-  certificate revocation, add-on updates) and, once a day, the Chrome or Edge
-  store to look for updates of your Chrome extensions (they see your IP and those
-  extensions' IDs; with signatures required this check doesn't run).
+  certificate revocation, add-on updates); once a day, GitHub to look for a new
+  version of Bruma (it sees your IP; `bruma.actualizador.buscar = false` turns
+  it off); and once a day, the Chrome or Edge store to look for updates of your
+  Chrome extensions (they see your IP and those extensions' IDs; with signatures
+  required this check doesn't run).
 - **Fingerprint**: it matches Mullvad Browser except the Firefox version and two
   details that depend on it — enough for a site to tell you aren't using Mullvad
   or Tor Browser, and Bruma users are few.
@@ -347,7 +395,8 @@ warning (`AVISO`) without failing the system rebuild.
 | `gecko/ajustes.cfg` | Mullvad Browser's settings added on top of LibreWolf's. |
 | `lanzador.sh` | The `bruma` command (Tor window included). |
 | `extension/` | Bruma's extension: the store buttons and `.crx` installs. |
-| `host/` | Native host and converter for Chrome extensions, compatibility layer, Tor exit-country helper. |
+| `host/` | Native host and converter for Chrome extensions, compatibility layer, Tor exit-country helper, and the updater (`actualizar.sh` and its polkit action). |
+| `VERSION`, `firmas/` | Bruma's version and the public keys allowed to sign versions. |
 | `marca/` | Branding, the Bruma button (`ajustes-bruma.sys.mjs`) and the scripts that apply them. |
 | `iconos/` | The logo: a globe (the web) dissolving into wisps of mist. |
 | `pruebas/seguridad.py` | Security tests of the extension converter. |

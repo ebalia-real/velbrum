@@ -9,6 +9,9 @@ set -euo pipefail
 unset XRE_PROFILE_PATH XRE_PROFILE_LOCAL_PATH XRE_PROFILE_NAME XRE_RESTARTED_BY_PROFILE_MANAGER MOZ_LAUNCHED_CHILD
 # El botón «Bruma» lo usa para abrir la ventana con Tor.
 export BRUMA_LANZADOR="@lanzador@"
+# El actualizador (ver README.md, «Updates»): la versión de Bruma, de dónde
+# salen las versiones nuevas (vacío: no se buscan) y el ayudante que las instala.
+export BRUMA_VERSION="@versionBruma@" BRUMA_REPO_ACTUALIZACIONES=@repoActualizaciones@ BRUMA_ACTUALIZADOR="@actualizador@"
 
 ayuda() {
   cat <<'FIN'
@@ -39,6 +42,8 @@ Uso: bruma [opciones] [URL o archivo.crx...]
   --con-bordes              vuelven los bordes de privacidad (como Mullvad
                             Browser: tamaño de ventana redondeado)
   --estado-bordes           muestra si los bordes están puestos
+  --reiniciar               espera a que se cierre Bruma y lo vuelve a abrir
+                            (la versión instalada); lo usa el botón «Reiniciar»
   --ayuda                   esta ayuda
 
 Los archivos .crx que se abran con Bruma se instalan como extensiones.
@@ -146,12 +151,14 @@ poner_bordes() {
 privada=0
 nueva=0
 tor=0
+reiniciar=0
 extra=()
 urls=()
 while (($#)); do
   case "$1" in
     --privada) privada=1; shift ;;
     --tor) tor=1; shift ;;
+    --reiniciar) reiniciar=1; shift ;;
     --tor-pais) cambiar_pais "${2:-}"; exit ;;
     --nueva-ventana) nueva=1; shift ;;
     --ayuda | -h | --help) ayuda; exit 0 ;;
@@ -223,6 +230,16 @@ rm -f "$perfil/bruma-idioma.json"
 bruma_abierto() {
   perfil_abierto "$perfil"
 }
+# --reiniciar (botón «Reiniciar» de Bruma, por ejemplo después de una
+# actualización): espera a que se cierre la instancia que lo pidió (hasta un
+# minuto) y sigue como un arranque normal, con la versión instalada.
+if ((reiniciar)); then
+  for _ in $(seq 240); do
+    bruma_abierto || break
+    sleep 0.25
+  done
+fi
+
 revisado_ubo="$datos/ubo-sin-librewolf"
 if [ ! -e "$revisado_ubo" ] && ! bruma_abierto; then
   uuid=$(grep -o 'uBlock0@raymondhill.net\\":\\"[0-9a-f-]*' "$perfil/prefs.js" 2>/dev/null | grep -o '[0-9a-f-]*$' || true)

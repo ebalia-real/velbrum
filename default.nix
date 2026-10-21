@@ -19,6 +19,13 @@
   # locales y VPN con nombres propios); lo elige modulo.nix (opción
   # bruma.dominiosLocales).
   dominiosLocales ? [ "lan" "home" "home.arpa" "internal" "localdomain" ],
+  # Actualizador (ver README.md, «Updates»; lo eligen las opciones
+  # bruma.actualizador.* de modulo.nix): de qué repositorio de GitHub salen
+  # las versiones firmadas, dónde está la carpeta de Bruma que se actualiza y
+  # con qué comando se aplica. Sin repositorio, Bruma no busca versiones nuevas.
+  repoActualizaciones ? "ebalia-real/bruma",
+  carpetaBruma ? "/etc/nixos/bruma",
+  comandoActualizar ? "/run/current-system/sw/bin/nixos-rebuild switch",
 }:
 let
   inherit (pkgs) lib;
@@ -81,6 +88,8 @@ let
   # ── LibreWolf + ajustes de Mullvad ──────────────────────────────────────
   librewolf = pkgs.librewolf-unwrapped;
   versionFirefox = builtins.head (lib.splitString "-" librewolf.version);
+  # Versión de Bruma (la de la etiqueta firmada vAAAA.MM.DD que se publica).
+  versionBruma = lib.fileContents ./VERSION;
   # Versión de Chrome que Bruma dice ser al pedir extensiones a la tienda.
   versionChrome = pkgs.ungoogled-chromium.version;
 
@@ -306,7 +315,30 @@ pkgs.runCommand "bruma-${versionFirefox}"
       --replace-fail @notifySend@ ${pkgs.libnotify}/bin/notify-send \
       --replace-fail @tor@ ${pkgs.tor}/bin/tor \
       --replace-fail @torGeoip@ ${pkgs.tor.geoip} \
-      --replace-fail @lanzador@ $out/bin/bruma
+      --replace-fail @lanzador@ $out/bin/bruma \
+      --replace-fail @versionBruma@ ${versionBruma} \
+      --replace-fail @repoActualizaciones@ ${lib.escapeShellArg (lib.escapeShellArg repoActualizaciones)} \
+      --replace-fail @actualizador@ $out/bin/bruma-actualizar
     chmod 555 $out/bin/bruma
     ${pkgs.bash}/bin/bash -n $out/bin/bruma
+
+    # Actualizador: versión instalada, claves que pueden firmar versiones, el
+    # ayudante que instala (como root, con pkexec) y su acción de polkit. Los
+    # valores van con doble escape: uno lo consume este shell y el otro queda
+    # en el script (comillas para bash).
+    echo ${versionBruma} > $out/share/bruma/version
+    cp ${./firmas/claves-permitidas} $out/share/bruma/claves-permitidas
+    substitute ${./host/actualizar.sh} $out/bin/bruma-actualizar \
+      --replace-fail @bash@ ${pkgs.bash}/bin/bash \
+      --replace-fail @carpeta@ ${lib.escapeShellArg (lib.escapeShellArg carpetaBruma)} \
+      --replace-fail @repositorio@ ${lib.escapeShellArg (lib.escapeShellArg repoActualizaciones)} \
+      --replace-fail @version@ ${versionBruma} \
+      --replace-fail @clavesPermitidas@ $out/share/bruma/claves-permitidas \
+      --replace-fail @sshKeygen@ ${pkgs.openssh}/bin/ssh-keygen \
+      --replace-fail @comando@ ${lib.escapeShellArg (lib.escapeShellArg comandoActualizar)}
+    chmod 555 $out/bin/bruma-actualizar
+    ${pkgs.bash}/bin/bash -n $out/bin/bruma-actualizar
+    mkdir -p $out/share/polkit-1/actions
+    substitute ${./host/actualizar.policy} $out/share/polkit-1/actions/org.bruma.actualizar.policy \
+      --replace-fail @actualizador@ $out/bin/bruma-actualizar
   ''

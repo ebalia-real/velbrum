@@ -13,6 +13,8 @@
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   CustomizableUI: "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  setInterval: "resource://gre/modules/Timer.sys.mjs",
 });
 
 const ID = "bruma-ajustes";
@@ -247,6 +249,201 @@ function correrLanzador(argumentos) {
   });
 }
 
+// ── Actualizaciones ──────────────────────────────────────────────────────
+// Una vez por día se fija en GitHub si hay una etiqueta vAAAA.MM.DD más nueva
+// que la versión instalada y lo ofrece en una barra. «Instalar y reiniciar»
+// corre el ayudante bruma-actualizar con pkexec (contraseña de
+// administrador): él baja la versión, verifica su firma y hace el rebuild.
+// Después, o cuando un rebuild propio instala otra versión, ofrece reiniciar
+// con el lanzador instalado (así arranca la versión nueva) y las pestañas.
+const VERSION = Services.env.get("BRUMA_VERSION") || "";
+const REPO = Services.env.get("BRUMA_REPO_ACTUALIZACIONES") || "";
+const AYUDANTE = Services.env.get("BRUMA_ACTUALIZADOR") || "";
+// (BRUMA_LANZADOR_SISTEMA solo sirve para probar el reinicio con otro lanzador.)
+const LANZADOR_SISTEMA = Services.env.get("BRUMA_LANZADOR_SISTEMA") || "/run/current-system/sw/bin/bruma";
+// (BRUMA_PKEXEC solo sirve para probar la instalación sin pedir contraseña.)
+const PKEXEC = Services.env.get("BRUMA_PKEXEC") || "/run/wrappers/bin/pkexec";
+const PREF_ULTIMA = "bruma.actualizador.ultimaBusqueda";
+const PREF_RECORDAR = "bruma.actualizador.recordarDesde";
+const BARRA = "bruma-actualizacion";
+const UN_DIA = 24 * 3600;
+let versionDisponible = null;
+let instalando = false;
+let reinicioOfrecido = false;
+
+const ahora = () => Math.floor(Date.now() / 1000);
+
+// «2026.10.21.2» es más nueva que «2026.10.21».
+function masNueva(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] ?? 0) != (pb[i] ?? 0)) {
+      return (pa[i] ?? 0) > (pb[i] ?? 0);
+    }
+  }
+  return false;
+}
+
+function archivoLocal(ruta) {
+  const archivo = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+  archivo.initWithPath(ruta);
+  return archivo;
+}
+
+// El lanzador que instaló el último rebuild (resolviendo los enlaces).
+function lanzadorInstalado() {
+  try {
+    const archivo = archivoLocal(LANZADOR_SISTEMA);
+    archivo.normalize();
+    return archivo.exists() ? archivo.path : null;
+  } catch {
+    return null;
+  }
+}
+
+// ¿Un rebuild instaló otra versión de Bruma desde que se abrió esta?
+function hayVersionInstaladaNueva() {
+  const actual = Services.env.get("BRUMA_LANZADOR");
+  const instalado = lanzadorInstalado();
+  return Boolean(actual && instalado && actual != instalado);
+}
+
+async function buscarVersion(ventana, forzar) {
+  if (!REPO || !VERSION) {
+    return null;
+  }
+  if (!forzar && ahora() - Services.prefs.getIntPref(PREF_ULTIMA, 0) < UN_DIA) {
+    return versionDisponible;
+  }
+  const respuesta = await ventana.fetch(`https://api.github.com/repos/${REPO}/tags?per_page=50`, {
+    credentials: "omit",
+    cache: "no-store",
+  });
+  if (!respuesta.ok) {
+    throw new Error(`GitHub respondió ${respuesta.status}`);
+  }
+  const versiones = (await respuesta.json())
+    .map(etiqueta => String(etiqueta.name))
+    .filter(nombre => /^v\d{4}\.\d{2}\.\d{2}(\.\d+)?$/.test(nombre))
+    .map(nombre => nombre.slice(1));
+  Services.prefs.setIntPref(PREF_ULTIMA, ahora());
+  const ultima = versiones.reduce((mejor, v) => (!mejor || masNueva(v, mejor) ? v : mejor), null);
+  versionDisponible = ultima && masNueva(ultima, VERSION) ? ultima : null;
+  return versionDisponible;
+}
+
+async function barra(ventana, texto, botones) {
+  const caja = ventana.gNotificationBox;
+  const vieja = caja.getNotificationWithValue(BARRA);
+  if (vieja) {
+    caja.removeNotification(vieja);
+  }
+  return caja.appendNotification(
+    BARRA,
+    { label: texto, image: ICONO, priority: caja.PRIORITY_INFO_HIGH },
+    botones
+  );
+}
+
+function reiniciarBruma() {
+  // El lanzador instalado espera a que esta instancia se cierre y abre la
+  // versión instalada; al abrir se recuperan las pestañas.
+  const proceso = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
+  proceso.init(archivoLocal(lanzadorInstalado() ?? Services.env.get("BRUMA_LANZADOR")));
+  proceso.runAsync(["--reiniciar"], 1);
+  Services.prefs.setBoolPref("browser.sessionstore.resume_session_once", true);
+  Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+}
+
+function ofrecerReinicio(ventana, texto) {
+  reinicioOfrecido = true;
+  return barra(ventana, texto, [
+    { label: "Reiniciar ahora", accessKey: "R", callback: () => reiniciarBruma() },
+    { label: "Más tarde", accessKey: "M", callback: () => false },
+  ]);
+}
+
+function instalar(ventana, version) {
+  if (instalando || !AYUDANTE) {
+    return;
+  }
+  instalando = true;
+  barra(
+    ventana,
+    `Instalando Bruma ${version}… Te va a pedir la contraseña de administrador; ` +
+      "después el sistema se actualiza, lo que puede tardar varios minutos.",
+    []
+  );
+  const proceso = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
+  proceso.init(archivoLocal(PKEXEC));
+  proceso.runAsync([AYUDANTE, "instalar"], 2, {
+    observe(_sujeto, tema) {
+      instalando = false;
+      const codigo = proceso.exitValue;
+      if (tema == "process-finished" && codigo == 0) {
+        if (hayVersionInstaladaNueva()) {
+          ofrecerReinicio(ventana, `Bruma ${version} está instalada.`);
+        } else {
+          barra(ventana, `Bruma ya está al día (${VERSION}).`, []);
+        }
+      } else if (codigo == 126 || codigo == 127) {
+        barra(ventana, "No se instaló la actualización: se canceló la contraseña de administrador.", [
+          { label: "Intentar de nuevo", accessKey: "I", callback: () => instalar(ventana, version) },
+        ]);
+      } else {
+        barra(
+          ventana,
+          "No se pudo instalar la actualización. Los detalles están en /var/log/bruma-actualizar.log.",
+          []
+        );
+      }
+    },
+  });
+}
+
+function ofrecerActualizacion(ventana, version) {
+  return barra(ventana, `Hay una versión nueva de Bruma (${version}).`, [
+    { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) },
+    {
+      label: "Ahora no",
+      accessKey: "A",
+      callback: () => {
+        Services.prefs.setIntPref(PREF_RECORDAR, ahora() + UN_DIA);
+        return false;
+      },
+    },
+  ]);
+}
+
+// Revisión periódica (y con «Buscar actualizaciones», forzada). Devuelve un
+// texto para el panel.
+async function revisarActualizaciones(forzar = false) {
+  const ventana = Services.wm.getMostRecentWindow("navigator:browser");
+  if (!ventana || CON_TOR || instalando) {
+    return "";
+  }
+  if (hayVersionInstaladaNueva()) {
+    if (forzar || !reinicioOfrecido) {
+      await ofrecerReinicio(ventana, "Hay una versión nueva de Bruma instalada. Reiniciá para usarla.");
+    }
+    return "Hay una versión nueva instalada: reiniciá Bruma.";
+  }
+  try {
+    const version = await buscarVersion(ventana, forzar);
+    if (version) {
+      if (forzar || ahora() >= Services.prefs.getIntPref(PREF_RECORDAR, 0)) {
+        await ofrecerActualizacion(ventana, version);
+      }
+      return `Hay una versión nueva: ${version}.`;
+    }
+    return REPO ? "Bruma está al día." : "";
+  } catch (error) {
+    console.warn("Bruma: no pude buscar actualizaciones", error);
+    return forzar ? "No se pudo buscar actualizaciones (¿hay internet?)." : "";
+  }
+}
+
 // Abre la ventana con Tor, o una pestaña nueva en ella si ya está abierta
 // (con una dirección, esa página). En la ventana con Tor, abre otra ventana.
 function abrirConTor(ventana, direccion) {
@@ -461,9 +658,7 @@ function crearPanel(doc) {
   const reiniciar = xul("button");
   reiniciar.classList.add("bruma-reiniciar");
   reiniciar.setAttribute("label", "Reiniciar Bruma para aplicar");
-  reiniciar.addEventListener("command", () => {
-    Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit | Ci.nsIAppStartup.eRestart);
-  });
+  reiniciar.addEventListener("command", () => reiniciarBruma());
   const tor = xul("button");
   tor.setAttribute("label", CON_TOR ? "Nueva ventana con Tor" : "Nueva pestaña con Tor");
   tor.addEventListener("command", () => {
@@ -471,6 +666,21 @@ function crearPanel(doc) {
     abrirConTor(doc.defaultView);
   });
   caja.append(reiniciar, tor);
+
+  // Versión y actualizaciones.
+  const version = texto(VERSION ? `Bruma ${VERSION}` : "Bruma", "margin: 10px 0 0; opacity: 0.7; font-size: 0.9em;");
+  version.classList.add("bruma-version");
+  caja.append(version);
+  if (!CON_TOR) {
+    const buscar = xul("button");
+    buscar.setAttribute("label", "Buscar actualizaciones");
+    buscar.addEventListener("command", async () => {
+      version.textContent = `Bruma ${VERSION} · buscando…`;
+      const estado = await revisarActualizaciones(true);
+      version.textContent = `Bruma ${VERSION}${estado ? " · " + estado : ""}`;
+    });
+    caja.append(buscar);
+  }
 
   panel.append(caja);
   panel.addEventListener("popupshowing", () => actualizar(panel));
@@ -556,9 +766,15 @@ export function iniciar(ventana) {
   creado = true;
   if (CON_TOR) {
     aislarCircuitos();
-  } else if (!Services.prefs.prefHasUserValue(PREF_LIVIANO) && Services.sysinfo.getProperty("memsize") < POCA_MEMORIA) {
-    // PC con poca memoria y sin elección del usuario: modo liviano.
-    aplicarLiviano(true);
+  } else {
+    if (!Services.prefs.prefHasUserValue(PREF_LIVIANO) && Services.sysinfo.getProperty("memsize") < POCA_MEMORIA) {
+      // PC con poca memoria y sin elección del usuario: modo liviano.
+      aplicarLiviano(true);
+    }
+    // Actualizaciones: al minuto de abrir y después cada 3 horas (la búsqueda
+    // en GitHub es una vez por día).
+    lazy.setTimeout(() => revisarActualizaciones(), 60 * 1000);
+    lazy.setInterval(() => revisarActualizaciones(), 3 * 3600 * 1000);
   }
   lazy.CustomizableUI.createWidget({
     id: ID,

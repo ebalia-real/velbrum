@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Bruma: el botón «Instalar y reiniciar» corre bruma-actualizar con pkexec.
+     Solo se permite ese programa con el argumento «instalar», y siempre con
+     la contraseña de administrador. -->
+<policyconfig>
+  <action id="org.bruma.actualizar">
+    <description>Instalar la actualización de Bruma</description>
+    <message>Para instalar la versión nueva de Bruma hace falta la contraseña de administrador.</message>
+    <icon_name>bruma</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@actualizador@</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">instalar</annotate>
+  </action>
+</policyconfig>
