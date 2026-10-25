@@ -1,10 +1,10 @@
-"""Paquete de idioma de Bruma (lo corre el servicio de sistema bruma-idioma).
+"""Paquete de idioma de Velbrum (lo corre el servicio de sistema velbrum-idioma).
 
 Mozilla publica un paquete de idioma por versión de Firefox, pero su marca dice
-«Firefox». Este programa baja el de esta versión, le pone la marca de Bruma
+«Firefox». Este programa baja el de esta versión, le pone la marca de Velbrum
 (marca/brand.ftl y brand.properties), le saca la firma de Mozilla (ya no
 corresponde) y lo deja en una carpeta que solo root puede modificar
-(/var/lib/bruma/idioma). Desde ahí lo instala una política del navegador
+(/var/lib/velbrum/idioma). Desde ahí lo instala una política del navegador
 (default.nix): Gecko no carga paquetes sueltos del perfil sin preguntar.
 
 Uso: idioma.py CARPETA VERSION_FIREFOX CARPETA_MARCA IDIOMA...
@@ -47,8 +47,8 @@ def descargar(version, idioma):
     return datos
 
 
-def con_marca_bruma(datos, idioma, marca):
-    """El paquete de Mozilla sin su firma y con la marca de Bruma."""
+def con_marca_velbrum(datos, idioma, marca):
+    """El paquete de Mozilla sin su firma y con la marca de Velbrum."""
     reemplazos = {
         f"browser/localization/{idioma}/branding/brand.ftl": (marca / "brand.ftl").read_bytes(),
         f"browser/chrome/{idioma}/locale/branding/brand.properties": (marca / "brand.properties").read_bytes(),
@@ -91,7 +91,7 @@ def main(carpeta, version, marca, *idiomas):
             sys.exit(f"idioma.py: sin conexión con Mozilla ({error}); se reintenta más tarde")
         if datos is None:
             continue
-        escribir(xpi, con_marca_bruma(datos, idioma, marca))
+        escribir(xpi, con_marca_velbrum(datos, idioma, marca))
         escribir(sello, f"{version}\n".encode())
         elegido = idioma
         print(f"idioma.py: paquete {idioma} para Firefox {version} listo")
@@ -101,7 +101,7 @@ def main(carpeta, version, marca, *idiomas):
             for sobra in (carpeta / f"{idioma}.xpi", carpeta / f"{idioma}.version"):
                 sobra.unlink(missing_ok=True)
     if elegido is None:
-        print(f"idioma.py: Mozilla no tiene paquete para {', '.join(idiomas)}; Bruma queda en inglés")
+        print(f"idioma.py: Mozilla no tiene paquete para {', '.join(idiomas)}; Velbrum queda en inglés")
 
 
 if __name__ == "__main__":

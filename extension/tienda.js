@@ -1,5 +1,5 @@
-// Bruma: en la Chrome Web Store, el botón «Agregar a Chrome» de la tienda
-// instala la extensión en Bruma. Si la tienda cambia y el botón no aparece, se
+// Velbrum: en la Chrome Web Store, el botón «Agregar a Chrome» de la tienda
+// instala la extensión en Velbrum. Si la tienda cambia y el botón no aparece, se
 // muestra uno propio abajo a la derecha. El cartel, la instalación y el
 // seguimiento de la página están en aviso.js.
 
@@ -10,13 +10,13 @@ const RE_AGREGAR =
 const RE_NO_GRACIAS = /^(no,? gracias|no,? thanks|non merci|nein,? danke|não,? obrigado)$/i;
 
 const idActual = () => location.pathname.match(RE_DETALLE)?.[1] ?? null;
-const instalar = () => instalarEnBruma("instalar-chrome", idActual());
+const instalar = () => instalarEnVelbrum("instalar-chrome", idActual());
 const esAgregarAChrome = (texto) => RE_AGREGAR.test(texto);
 
 // ── Botón de la tienda ────────────────────────────────────────────────────
 function botonDeLaTienda() {
   for (const boton of document.querySelectorAll("button")) {
-    if (esAgregarAChrome(boton.innerText.trim()) || boton.dataset.bruma) return boton;
+    if (esAgregarAChrome(boton.innerText.trim()) || boton.dataset.velbrum) return boton;
   }
   return null;
 }
@@ -40,7 +40,7 @@ function ocultarFranjaDeChrome() {
     if (!RE_FRANJA.test(nodo.textContent.trim())) continue;
     let franja = null;
     for (let e = nodo.parentElement; e && e !== document.body; e = e.parentElement) {
-      if (e.querySelector("[data-bruma]") || e.getBoundingClientRect().height > 120) break;
+      if (e.querySelector("[data-velbrum]") || e.getBoundingClientRect().height > 120) break;
       franja = e;
     }
     if (franja && franja.style.display !== "none") franja.style.display = "none";
@@ -63,6 +63,6 @@ seguirLaPagina(() => {
     adaptarBoton(boton, esAgregarAChrome, instalar);
     ocultarFranjaDeChrome();
   } else if (!hayAviso() && Date.now() - desde > 4000) {
-    mostrar("Esta extensión de Chrome se puede usar en Bruma.", instalar);
+    mostrar("Esta extensión de Chrome se puede usar en Velbrum.", instalar);
   }
 });

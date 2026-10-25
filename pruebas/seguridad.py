@@ -1,6 +1,6 @@
-"""Pruebas de seguridad del conversor de extensiones de Chrome de Bruma.
+"""Pruebas de seguridad del conversor de extensiones de Chrome de Velbrum.
 
-Uso: python3 -I pruebas/seguridad.py   (desde la carpeta de Bruma; necesita internet)
+Uso: python3 -I pruebas/seguridad.py   (desde la carpeta de Velbrum; necesita internet)
 
 Baja un CRX real de la tienda de Chrome (Dark Reader) y comprueba que:
 - la firma CRX3 del autor se verifica y da el ID correcto;
@@ -179,24 +179,54 @@ def _():
 def _():
     with tempfile.TemporaryDirectory() as tmp:
         os.environ["XDG_DATA_HOME"] = tmp
-        perfil = pathlib.Path(tmp, "bruma/gecko")
+        perfil = pathlib.Path(tmp, "velbrum/gecko")
         perfil.mkdir(parents=True)
         (perfil / "extensions.json").write_text(
-            '{"addons": [{"id": "a@chrome.bruma", "location": "app-profile", "foreignInstall": false},'
-            ' {"id": "b@chrome.bruma", "location": "app-profile", "foreignInstall": true}]}'
+            '{"addons": [{"id": "a@chrome.velbrum", "location": "app-profile", "foreignInstall": false},'
+            ' {"id": "b@chrome.velbrum", "location": "app-profile", "foreignInstall": true}]}'
         )
-        assert ec.instaladas_por_el_usuario() == {"a@chrome.bruma"}
+        assert ec.instaladas_por_el_usuario() == {"a@chrome.velbrum"}
 
 
-@prueba("firmas exigidas (bruma --exigir-firmas): no instala ni actualiza")
+@prueba("compatibilidad: páginas, scripts de contenido y webRequest")
+def _():
+    m = {
+        "manifest_version": 3,
+        "permissions": ["webRequest", "webRequestAuthProvider"],
+        "background": {"service_worker": "sw.js"},
+        "content_scripts": [{"matches": ["<all_urls>"], "js": ["a.js"]},
+                            {"matches": ["<all_urls>"], "js": ["b.js"], "world": "MAIN"}],
+    }
+    archivos = {"sw.js": b"", "popup.html": b"<html><head><title>x</title></head><body></body></html>",
+                "a.js": b"", "b.js": b""}
+    m, _ = ec.adaptar_manifiesto(m, ID_DARK_READER, archivos)
+    assert m["content_scripts"][0]["js"] == ["velbrum-compat/contenido.js", "a.js"]
+    assert m["content_scripts"][1]["js"] == ["b.js"]  # mundo de la página: sin la API de la extensión
+    assert archivos["popup.html"].startswith(b'<html><head><script src="/velbrum-compat/pagina.js"></script>')
+    assert "webRequestBlocking" in m["permissions"]
+    # Lo agrega Velbrum: no cuenta como permiso nuevo al actualizar.
+    assert ec.permisos_pedidos(m) == ec.permisos_pedidos({"permissions": ["webRequest", "webRequestAuthProvider"],
+                                                         "content_scripts": m["content_scripts"]})
+
+
+@prueba("compatibilidad: la página de fondo de MV2 no lleva pagina.js")
+def _():
+    m = {"manifest_version": 2, "background": {"page": "fondo.html"}}
+    archivos = {"fondo.html": b"<head></head>", "opciones.html": b"<p>x</p>"}
+    ec.adaptar_manifiesto(m, ID_DARK_READER, archivos)
+    assert b"pagina.js" not in archivos["fondo.html"] and b"velbrum-compat/fondo.js" in archivos["fondo.html"]
+    assert archivos["opciones.html"].startswith(b'<script src="/velbrum-compat/pagina.js"></script>')
+
+
+@prueba("firmas exigidas (velbrum --exigir-firmas): no instala ni actualiza")
 def _():
     with tempfile.TemporaryDirectory() as tmp:
         os.environ["XDG_DATA_HOME"] = tmp
-        pathlib.Path(tmp, "bruma").mkdir()
-        pathlib.Path(tmp, "bruma/firmas-obligatorias").touch()
+        pathlib.Path(tmp, "velbrum").mkdir()
+        pathlib.Path(tmp, "velbrum/firmas-obligatorias").touch()
         debe_fallar(ec.preparar, ID_DARK_READER)
         assert ec.actualizar() == ([], [])
-        pathlib.Path(tmp, "bruma/firmas-obligatorias").unlink()
+        pathlib.Path(tmp, "velbrum/firmas-obligatorias").unlink()
         assert not ec.firmas_obligatorias()
 
 

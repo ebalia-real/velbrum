@@ -1,11 +1,11 @@
-"""Cambia el país de salida del Tor de la ventana con Tor de Bruma.
+"""Cambia el país de salida del Tor de la ventana con Tor de Velbrum.
 
 Uso: python3 -I tor-pais.py SOCKET_CONTROL ARCHIVO_COOKIE PAIS
 PAIS es un código de dos letras (de, nl, us…) o «auto» (cualquier país).
 
 Habla con el puerto de control de Tor (un socket Unix que solo tu usuario
 puede abrir, con autenticación por cookie): fija ExitNodes/StrictNodes y pide
-circuitos nuevos (NEWNYM). Lo llama el lanzador («bruma --tor-pais»), que
+circuitos nuevos (NEWNYM). Lo llama el lanzador («velbrum --tor-pais»), que
 valida el código antes.
 """
 import re

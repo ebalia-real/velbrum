@@ -1,12 +1,12 @@
 #!@python@ -I
-"""Host de mensajería nativa «bruma.extensiones» (ver README.md).
+"""Host de mensajería nativa «velbrum.extensiones» (ver README.md).
 
-La extensión propia de Bruma le pide instalar extensiones de Chrome:
+La extensión propia de Velbrum le pide instalar extensiones de Chrome:
 - {"accion": "instalar-chrome", "id"}: la descarga de la Chrome Web Store;
 - {"accion": "instalar-edge", "id"}: la descarga de la tienda de Edge;
 - {"accion": "instalar-crx", "ruta"}: usa un .crx ya descargado.
 En todos los casos la adapta a Gecko (extensiones_chrome.py) y abre la
-instalación en Bruma, que muestra su cartel «¿Agregar …?».
+instalación en Velbrum, que muestra su cartel «¿Agregar …?».
 """
 import json
 import os
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-BRUMA = "@bruma@"
+VELBRUM = "@velbrum@"
 MAXIMO = 1024 * 1024
 sys.path.insert(0, "@libexec@")
 
@@ -51,9 +51,9 @@ def entorno_limpio():
 
 
 def abrir_instalacion(ruta_xpi):
-    """Le pasa el XPI a Bruma (la ventana abierta), que pide confirmación."""
+    """Le pasa el XPI a Velbrum (la ventana abierta), que pide confirmación."""
     subprocess.Popen(
-        [BRUMA, "--", Path(ruta_xpi).as_uri()],
+        [VELBRUM, "--", Path(ruta_xpi).as_uri()],
         env=entorno_limpio(),
         cwd=os.path.expanduser("~"),
         stdin=subprocess.DEVNULL,

@@ -1,16 +1,16 @@
-// Bruma: lo que comparten los botones de las tiendas (tienda.js en la de
+// Velbrum: lo que comparten los botones de las tiendas (tienda.js en la de
 // Chrome, edge.js en la de Edge): el cartel de abajo a la derecha y el pedido
 // de instalación a background.js. Se carga antes que ellos.
 
-var TEXTO_BRUMA = "Agregar a Bruma";
+var TEXTO_VELBRUM = "Agregar a Velbrum";
 
 // ── Mensajes (abajo a la derecha) ─────────────────────────────────────────
 let aviso = null;
-// Con `alTocar`, el cartel lleva el botón «Agregar a Bruma».
+// Con `alTocar`, el cartel lleva el botón «Agregar a Velbrum».
 function mostrar(texto, alTocar = null) {
   if (!aviso) {
     const anfitrion = document.createElement("div");
-    anfitrion.id = "bruma-aviso";
+    anfitrion.id = "velbrum-aviso";
     // Cerrado: la página no puede leer ni tocar el cartel ni su botón.
     const sombra = anfitrion.attachShadow({ mode: "closed" });
     sombra.innerHTML = `
@@ -25,8 +25,8 @@ function mostrar(texto, alTocar = null) {
         button:disabled { opacity: .6; cursor: progress; }
         [hidden] { display: none; }
       </style>
-      <div class="caja"><div class="titulo">Bruma</div><div class="texto"></div>
-        <button type="button" hidden>${TEXTO_BRUMA}</button></div>`;
+      <div class="caja"><div class="titulo">Velbrum</div><div class="texto"></div>
+        <button type="button" hidden>${TEXTO_VELBRUM}</button></div>`;
     aviso = { anfitrion, texto: sombra.querySelector(".texto"), boton: sombra.querySelector("button") };
     aviso.boton.addEventListener("click", (evento) => {
       if (evento.isTrusted) aviso?.alTocar?.();
@@ -48,11 +48,11 @@ function hayAviso() {
 // ── Instalación ───────────────────────────────────────────────────────────
 let instalando = false;
 // `accion`: «instalar-chrome» o «instalar-edge» (de qué tienda bajarla).
-async function instalarEnBruma(accion, id) {
+async function instalarEnVelbrum(accion, id) {
   if (!id || instalando) return;
   instalando = true;
-  const reintentar = () => instalarEnBruma(accion, id);
-  mostrar("Descargando la extensión y adaptándola a Bruma…");
+  const reintentar = () => instalarEnVelbrum(accion, id);
+  mostrar("Descargando la extensión y adaptándola a Velbrum…");
   try {
     const r = await browser.runtime.sendMessage({ accion, id });
     if (r?.ok) {
@@ -74,21 +74,21 @@ function cambiarTexto(boton, esDeLaTienda) {
   const caminante = document.createTreeWalker(boton, NodeFilter.SHOW_TEXT);
   for (let nodo = caminante.nextNode(); nodo; nodo = caminante.nextNode()) {
     const texto = nodo.textContent.trim();
-    if (texto === TEXTO_BRUMA) return;
+    if (texto === TEXTO_VELBRUM) return;
     if (texto && esDeLaTienda(texto)) {
-      nodo.textContent = TEXTO_BRUMA;
+      nodo.textContent = TEXTO_VELBRUM;
       return;
     }
   }
 }
 
-// Habilita el botón de la tienda y hace que instale en Bruma.
+// Habilita el botón de la tienda y hace que instale en Velbrum.
 function adaptarBoton(boton, esDeLaTienda, alTocar) {
   if (boton.disabled) boton.disabled = false;
   if (boton.getAttribute("aria-disabled") === "true") boton.setAttribute("aria-disabled", "false");
   cambiarTexto(boton, esDeLaTienda);
-  if (!boton.dataset.bruma) {
-    boton.dataset.bruma = "1";
+  if (!boton.dataset.velbrum) {
+    boton.dataset.velbrum = "1";
     boton.addEventListener(
       "click",
       (evento) => {

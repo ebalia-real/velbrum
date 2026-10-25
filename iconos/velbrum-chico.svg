@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- Bruma en tamaño chico (16 a 32 px): mismos elementos, más simples y gruesos. -->
+  <!-- Velbrum en tamaño chico (16 a 32 px): mismos elementos, más simples y gruesos. -->
   <defs>
     <radialGradient id="cielo" cx="0.4" cy="0.3" r="0.8">
       <stop offset="0" stop-color="#8f80ff"/>

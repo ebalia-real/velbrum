@@ -1,11 +1,11 @@
 #!@bash@
-# bruma-actualizar: instala la versión nueva de Bruma (ver README.md,
-# «Updates»). La corre el botón «Instalar y reiniciar» de Bruma con pkexec,
+# velbrum-actualizar: instala la versión nueva de Velbrum (ver README.md,
+# «Updates»). La corre el botón «Instalar y reiniciar» de Velbrum con pkexec,
 # que pide la contraseña de administrador:
 #
-#   bruma-actualizar instalar    baja la versión nueva, verifica su firma,
-#                                actualiza la carpeta de Bruma y hace el rebuild
-#   bruma-actualizar verificar   solo baja y verifica la versión nueva, sin
+#   velbrum-actualizar instalar    baja la versión nueva, verifica su firma,
+#                                actualiza la carpeta de Velbrum y hace el rebuild
+#   velbrum-actualizar verificar   solo baja y verifica la versión nueva, sin
 #                                cambiar nada (no necesita ser root)
 #
 # Seguridad:
@@ -30,10 +30,10 @@ comando_rebuild=@comando@
 instalada="@version@"
 claves="@clavesPermitidas@"
 modo="${1:-}"
-registro=/var/log/bruma-actualizar.log
+registro=/var/log/velbrum-actualizar.log
 
 decir() {
-  echo "bruma-actualizar: $*" >&2
+  echo "velbrum-actualizar: $*" >&2
   if [ "$(id -u)" = 0 ]; then echo "$(date -u +%FT%TZ) $*" >> "$registro"; fi
 }
 fallar() {
@@ -44,7 +44,7 @@ fallar() {
 case "$modo" in
   instalar) [ "$(id -u)" = 0 ] || fallar "«instalar» tiene que correr como root (pkexec)." ;;
   verificar) ;;
-  *) echo "Uso: bruma-actualizar instalar|verificar" >&2; exit 2 ;;
+  *) echo "Uso: velbrum-actualizar instalar|verificar" >&2; exit 2 ;;
 esac
 [ -d "$carpeta/.git" ] || fallar "$carpeta no es un repositorio git (ver «Updates» en README.md)."
 
@@ -74,12 +74,12 @@ etiqueta=$(git_dueno tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v[0-9]{4
 [ -n "$etiqueta" ] || fallar "no hay versiones publicadas."
 nueva=${etiqueta#v}
 if ! mas_nueva "$nueva" "$instalada"; then
-  decir "Bruma ya está al día ($instalada)."
+  decir "Velbrum ya está al día ($instalada)."
   exit 0
 fi
 
 git_dueno -c gpg.format=ssh -c gpg.ssh.program="@sshKeygen@" -c gpg.ssh.allowedSignersFile="$claves" \
-  verify-tag "$etiqueta" 2>/dev/null || fallar "la versión $nueva no tiene una firma válida de Bruma: no se instala."
+  verify-tag "$etiqueta" 2>/dev/null || fallar "la versión $nueva no tiene una firma válida de Velbrum: no se instala."
 [ "$(git_dueno show "$etiqueta:VERSION" | tr -d '[:space:]')" = "$nueva" ] \
   || fallar "la versión $nueva no coincide con su archivo VERSION: no se instala."
 decir "versión $nueva: firma verificada."
@@ -99,7 +99,7 @@ git_dueno merge --quiet --ff-only "$destino" \
 decir "instalando la versión $nueva (rebuild del sistema)…"
 read -r -a rebuild <<< "$comando_rebuild"
 if "${rebuild[@]}" >> "$registro" 2>&1; then
-  decir "Bruma $nueva instalada."
+  decir "Velbrum $nueva instalada."
 else
   fallar "el rebuild falló (detalles en $registro). El sistema sigue con la versión anterior."
 fi

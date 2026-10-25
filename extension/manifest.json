@@ -1,10 +1,10 @@
 {
   "manifest_version": 2,
-  "name": "Bruma",
+  "name": "Velbrum",
   "version": "2.1",
-  "description": "Instala en Bruma las extensiones de Chrome: desde la Chrome Web Store, la tienda de Edge o cualquier archivo .crx que descargues.",
+  "description": "Instala en Velbrum las extensiones de Chrome: desde la Chrome Web Store, la tienda de Edge o cualquier archivo .crx que descargues.",
   "browser_specific_settings": {
-    "gecko": { "id": "chrome@bruma", "strict_min_version": "128.0" }
+    "gecko": { "id": "chrome@velbrum", "strict_min_version": "128.0" }
   },
   "permissions": ["nativeMessaging", "downloads", "notifications"],
   "background": { "scripts": ["background.js"] },
@@ -20,5 +20,5 @@
       "run_at": "document_idle"
     }
   ],
-  "icons": { "48": "iconos/bruma-48.png", "96": "iconos/bruma-96.png" }
+  "icons": { "48": "iconos/velbrum-48.png", "96": "iconos/velbrum-96.png" }
 }

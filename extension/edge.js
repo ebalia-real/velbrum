@@ -1,5 +1,5 @@
-// Bruma: en la tienda de complementos de Edge, el botón «Obtener» («Get») de
-// cada extensión, que fuera de Edge viene desactivado, la instala en Bruma.
+// Velbrum: en la tienda de complementos de Edge, el botón «Obtener» («Get») de
+// cada extensión, que fuera de Edge viene desactivado, la instala en Velbrum.
 // Sirve en la página de la extensión y en las listas de la tienda. Si la
 // tienda cambia y el botón no aparece, en la página de la extensión se muestra
 // uno propio abajo a la derecha. El cartel, la instalación y el seguimiento
@@ -13,7 +13,7 @@ const RE_OBTENER = /^(obtener|get|abrufen|obtenir|obter|ottieni|ophalen|pobierz|
 
 const idDeLaPagina = () => location.pathname.match(RE_DETALLE)?.[1] ?? null;
 const idDelBoton = (boton) => boton.id.match(RE_ID_BOTON)?.[1] ?? idDeLaPagina();
-const instalar = (boton) => instalarEnBruma("instalar-edge", boton ? idDelBoton(boton) : idDeLaPagina());
+const instalar = (boton) => instalarEnVelbrum("instalar-edge", boton ? idDelBoton(boton) : idDeLaPagina());
 // El botón ya marcado con el ID se reconoce por eso: cualquier texto vale.
 const cualquierTexto = () => true;
 
@@ -23,7 +23,7 @@ function botonesDeLaTienda() {
   );
   if (botones.length || !idDeLaPagina()) return botones;
   const porTexto = [...document.querySelectorAll("button")].find(
-    (b) => b.dataset.bruma || RE_OBTENER.test(b.innerText.trim()),
+    (b) => b.dataset.velbrum || RE_OBTENER.test(b.innerText.trim()),
   );
   return porTexto ? [porTexto] : [];
 }
@@ -31,21 +31,21 @@ function botonesDeLaTienda() {
 // Fuera de Edge la tienda pinta el botón como desactivado con sus propias
 // clases (no con :disabled): se lo pinta como su botón principal.
 function pintarBotones() {
-  if (document.getElementById("bruma-estilo")) return;
+  if (document.getElementById("velbrum-estilo")) return;
   const estilo = document.createElement("style");
-  estilo.id = "bruma-estilo";
+  estilo.id = "velbrum-estilo";
   estilo.textContent = `
-    button[data-bruma] { background-color: var(--colorBrandBackground, #0f6cbd) !important;
+    button[data-velbrum] { background-color: var(--colorBrandBackground, #0f6cbd) !important;
       color: var(--colorNeutralForegroundOnBrand, #fff) !important;
       border-color: transparent !important; cursor: pointer !important; }
-    button[data-bruma]:hover { background-color: var(--colorBrandBackgroundHover, #115ea3) !important; }
-    button[data-bruma]:active { background-color: var(--colorBrandBackgroundPressed, #0c3b5e) !important; }`;
+    button[data-velbrum]:hover { background-color: var(--colorBrandBackgroundHover, #115ea3) !important; }
+    button[data-velbrum]:active { background-color: var(--colorBrandBackgroundPressed, #0c3b5e) !important; }`;
   (document.head || document.documentElement).append(estilo);
 }
 
 // «Esta extensión no se puede instalar ya que no es compatible con la versión
 // de tu navegador» (debajo del botón) y la franja «Para instalar los
-// complementos, necesitarás el nuevo Microsoft Edge»: no corren en Bruma.
+// complementos, necesitarás el nuevo Microsoft Edge»: no corren en Velbrum.
 function ocultarAvisosDeEdge() {
   for (const e of document.querySelectorAll(".incompatible")) e.style.display = "none";
   for (const franja of document.querySelectorAll("[role=banner]")) {
@@ -71,6 +71,6 @@ seguirLaPagina(() => {
     adaptarBoton(boton, RE_ID_BOTON.test(boton.id) ? cualquierTexto : (t) => RE_OBTENER.test(t), instalar);
   }
   if (!botones.length && idDeLaPagina() && !hayAviso() && Date.now() - desde > 4000) {
-    mostrar("Esta extensión se puede usar en Bruma.", () => instalar(null));
+    mostrar("Esta extensión se puede usar en Velbrum.", () => instalar(null));
   }
 });

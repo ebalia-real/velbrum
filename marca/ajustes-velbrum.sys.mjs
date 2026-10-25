@@ -1,26 +1,29 @@
-/* Bruma: botón «Bruma» de la barra de herramientas, con los ajustes propios
- * de Bruma adentro del navegador: nivel de seguridad, bordes de privacidad,
+/* Velbrum: botón «Velbrum» de la barra de herramientas, con los ajustes propios
+ * de Velbrum adentro del navegador: nivel de seguridad, bordes de privacidad,
  * siempre privado, modo liviano, extensiones firmadas y la ventana privada
  * con Tor. En la ventana con Tor, además, cada sitio usa su propio circuito.
  *
  * Va dentro de omni.ja (solo lectura, en el store de Nix) y lo carga
  * browser-main.js en cada ventana (ver marca/codigo.py). Los cambios de
  * bordes y firmas se aplican al instante (Gecko escucha esas preferencias) y
- * se anotan en ~/.local/share/bruma igual que «bruma --sin-bordes» o «bruma
+ * se anotan en ~/.local/share/velbrum igual que «velbrum --sin-bordes» o «velbrum
  * --exigir-firmas», para que el lanzador los mantenga y el conversor de
  * extensiones de Chrome los respete. */
 
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   CustomizableUI: "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
+  ExtensionPermissions: "resource://gre/modules/ExtensionPermissions.sys.mjs",
+  PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   setInterval: "resource://gre/modules/Timer.sys.mjs",
 });
 
-const ID = "bruma-ajustes";
-const PANEL = "bruma-ajustes-panel";
+const ID = "velbrum-ajustes";
+const PANEL = "velbrum-ajustes-panel";
 const ICONO = "chrome://browser/skin/preferences/category-librewolf.svg";
-const CON_TOR = Services.env.get("BRUMA_TOR") == "1";
+const CON_TOR = Services.env.get("VELBRUM_TOR") == "1";
 
 // ── Niveles de seguridad, como los de Mullvad y Tor Browser ──────────────
 // (sin NoScript: con preferencias de Gecko).
@@ -64,7 +67,7 @@ const NIVELES = [
     },
   },
 ];
-const PREF_NIVEL = "bruma.nivelSeguridad";
+const PREF_NIVEL = "velbrum.nivelSeguridad";
 
 // ── Modo liviano: menos memoria para PCs con 1 a 3 GB ───────────────────
 const LIVIANO = {
@@ -80,7 +83,7 @@ const LIVIANO = {
   "browser.tabs.min_inactive_duration_before_unload": 300000,
   "toolkit.cosmeticAnimations.enabled": false,
 };
-const PREF_LIVIANO = "bruma.liviano";
+const PREF_LIVIANO = "velbrum.liviano";
 // Con menos de esto (en bytes), el modo liviano se prende solo.
 const POCA_MEMORIA = 3.5 * 1024 ** 3;
 
@@ -100,10 +103,14 @@ const CASILLAS = [
   {
     id: "privado",
     pref: "browser.privatebrowsing.autostart",
+    // LibreWolf la vuelve a false en cada arranque: el lanzador la repone si
+    // existe este archivo (gecko/ajustes.cfg).
+    marca: "siempre-privado",
+    marcaCuando: true,
     titulo: "Siempre privado, como Mullvad",
     texto:
-      "No guarda historial, cookies ni caché al cerrar. Las extensiones necesitan " +
-      "permiso para ventanas privadas (en Complementos). Se aplica al reiniciar.",
+      "No guarda historial, cookies ni caché al cerrar. Tus extensiones siguen " +
+      "andando: Velbrum les da permiso para ventanas privadas. Se aplica al reiniciar.",
     reiniciar: true,
     soloNormal: true,
   },
@@ -123,9 +130,9 @@ const CASILLAS = [
     pref: "xpinstall.signatures.required",
     titulo: "Solo extensiones firmadas por Mozilla",
     texto:
-      "Desactiva las extensiones de Chrome (no las borra). Sin esto, Bruma acepta " +
+      "Desactiva las extensiones de Chrome (no las borra). Sin esto, Velbrum acepta " +
       "extensiones de Chrome, siempre con el cartel de confirmación.",
-    bloqueada: "Lo fija la configuración del sistema (bruma.extensionesDeChrome).",
+    bloqueada: "Lo fija la configuración del sistema (velbrum.extensionesDeChrome).",
     marca: "firmas-obligatorias",
     marcaCuando: true,
     soloNormal: true,
@@ -133,7 +140,7 @@ const CASILLAS = [
 ];
 
 // Países de salida de la ventana con Tor: los que tienen suficientes nodos de
-// salida (muchos países no tienen). Ver «bruma --tor-pais».
+// salida (muchos países no tienen). Ver «velbrum --tor-pais».
 const PAISES = [
   ["auto", "Automático (el más anónimo)"],
   ["de", "Alemania"],
@@ -157,13 +164,13 @@ let reinicioPendiente = false;
 // sitios (ver aislarCircuitos).
 let clave = Services.uuid.generateUUID().toString();
 
-// El perfil de Bruma es ~/.local/share/bruma/gecko: los interruptores se
+// El perfil de Velbrum es ~/.local/share/velbrum/gecko: los interruptores se
 // anotan en la carpeta de arriba, donde los lee el lanzador. Con otro perfil
-// (la ventana con Tor, o bruma --profile …) no se anota nada.
+// (la ventana con Tor, o velbrum --profile …) no se anota nada.
 function carpetaDatos() {
   const perfil = PathUtils.profileDir;
   const datos = PathUtils.parent(perfil);
-  return PathUtils.filename(perfil) == "gecko" && PathUtils.filename(datos) == "bruma" ? datos : null;
+  return PathUtils.filename(perfil) == "gecko" && PathUtils.filename(datos) == "velbrum" ? datos : null;
 }
 
 async function anotar(casilla, valor) {
@@ -222,15 +229,15 @@ function cambiar(casilla, valor) {
   if (casilla.reiniciar) {
     reinicioPendiente = true;
   }
-  anotar(casilla, valor).catch(error => console.error("Bruma: no pude anotar", casilla.marca, error));
+  anotar(casilla, valor).catch(error => console.error("Velbrum: no pude anotar", casilla.marca, error));
 }
 
-// Corre el lanzador de Bruma (bruma …) y avisa cuando termina.
+// Corre el lanzador de Velbrum (velbrum …) y avisa cuando termina.
 function correrLanzador(argumentos) {
   return new Promise((resolver, rechazar) => {
-    const ruta = Services.env.get("BRUMA_LANZADOR");
+    const ruta = Services.env.get("VELBRUM_LANZADOR");
     if (!ruta) {
-      rechazar(new Error("no sé dónde está el lanzador (BRUMA_LANZADOR)"));
+      rechazar(new Error("no sé dónde está el lanzador (VELBRUM_LANZADOR)"));
       return;
     }
     const archivo = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
@@ -242,7 +249,7 @@ function correrLanzador(argumentos) {
         if (tema == "process-finished" && proceso.exitValue == 0) {
           resolver();
         } else {
-          rechazar(new Error(`bruma ${argumentos.join(" ")}: salió con ${proceso.exitValue}`));
+          rechazar(new Error(`velbrum ${argumentos.join(" ")}: salió con ${proceso.exitValue}`));
         }
       },
     });
@@ -252,20 +259,20 @@ function correrLanzador(argumentos) {
 // ── Actualizaciones ──────────────────────────────────────────────────────
 // Una vez por día se fija en GitHub si hay una etiqueta vAAAA.MM.DD más nueva
 // que la versión instalada y lo ofrece en una barra. «Instalar y reiniciar»
-// corre el ayudante bruma-actualizar con pkexec (contraseña de
+// corre el ayudante velbrum-actualizar con pkexec (contraseña de
 // administrador): él baja la versión, verifica su firma y hace el rebuild.
 // Después, o cuando un rebuild propio instala otra versión, ofrece reiniciar
 // con el lanzador instalado (así arranca la versión nueva) y las pestañas.
-const VERSION = Services.env.get("BRUMA_VERSION") || "";
-const REPO = Services.env.get("BRUMA_REPO_ACTUALIZACIONES") || "";
-const AYUDANTE = Services.env.get("BRUMA_ACTUALIZADOR") || "";
-// (BRUMA_LANZADOR_SISTEMA solo sirve para probar el reinicio con otro lanzador.)
-const LANZADOR_SISTEMA = Services.env.get("BRUMA_LANZADOR_SISTEMA") || "/run/current-system/sw/bin/bruma";
-// (BRUMA_PKEXEC solo sirve para probar la instalación sin pedir contraseña.)
-const PKEXEC = Services.env.get("BRUMA_PKEXEC") || "/run/wrappers/bin/pkexec";
-const PREF_ULTIMA = "bruma.actualizador.ultimaBusqueda";
-const PREF_RECORDAR = "bruma.actualizador.recordarDesde";
-const BARRA = "bruma-actualizacion";
+const VERSION = Services.env.get("VELBRUM_VERSION") || "";
+const REPO = Services.env.get("VELBRUM_REPO_ACTUALIZACIONES") || "";
+const AYUDANTE = Services.env.get("VELBRUM_ACTUALIZADOR") || "";
+// (VELBRUM_LANZADOR_SISTEMA solo sirve para probar el reinicio con otro lanzador.)
+const LANZADOR_SISTEMA = Services.env.get("VELBRUM_LANZADOR_SISTEMA") || "/run/current-system/sw/bin/velbrum";
+// (VELBRUM_PKEXEC solo sirve para probar la instalación sin pedir contraseña.)
+const PKEXEC = Services.env.get("VELBRUM_PKEXEC") || "/run/wrappers/bin/pkexec";
+const PREF_ULTIMA = "velbrum.actualizador.ultimaBusqueda";
+const PREF_RECORDAR = "velbrum.actualizador.recordarDesde";
+const BARRA = "velbrum-actualizacion";
 const UN_DIA = 24 * 3600;
 let versionDisponible = null;
 let instalando = false;
@@ -302,9 +309,9 @@ function lanzadorInstalado() {
   }
 }
 
-// ¿Un rebuild instaló otra versión de Bruma desde que se abrió esta?
+// ¿Un rebuild instaló otra versión de Velbrum desde que se abrió esta?
 function hayVersionInstaladaNueva() {
-  const actual = Services.env.get("BRUMA_LANZADOR");
+  const actual = Services.env.get("VELBRUM_LANZADOR");
   const instalado = lanzadorInstalado();
   return Boolean(actual && instalado && actual != instalado);
 }
@@ -346,11 +353,11 @@ async function barra(ventana, texto, botones) {
   );
 }
 
-function reiniciarBruma() {
+function reiniciarVelbrum() {
   // El lanzador instalado espera a que esta instancia se cierre y abre la
   // versión instalada; al abrir se recuperan las pestañas.
   const proceso = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
-  proceso.init(archivoLocal(lanzadorInstalado() ?? Services.env.get("BRUMA_LANZADOR")));
+  proceso.init(archivoLocal(lanzadorInstalado() ?? Services.env.get("VELBRUM_LANZADOR")));
   proceso.runAsync(["--reiniciar"], 1);
   Services.prefs.setBoolPref("browser.sessionstore.resume_session_once", true);
   Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
@@ -359,7 +366,7 @@ function reiniciarBruma() {
 function ofrecerReinicio(ventana, texto) {
   reinicioOfrecido = true;
   return barra(ventana, texto, [
-    { label: "Reiniciar ahora", accessKey: "R", callback: () => reiniciarBruma() },
+    { label: "Reiniciar ahora", accessKey: "R", callback: () => reiniciarVelbrum() },
     { label: "Más tarde", accessKey: "M", callback: () => false },
   ]);
 }
@@ -371,7 +378,7 @@ function instalar(ventana, version) {
   instalando = true;
   barra(
     ventana,
-    `Instalando Bruma ${version}… Te va a pedir la contraseña de administrador; ` +
+    `Instalando Velbrum ${version}… Te va a pedir la contraseña de administrador; ` +
       "después el sistema se actualiza, lo que puede tardar varios minutos.",
     []
   );
@@ -383,9 +390,9 @@ function instalar(ventana, version) {
       const codigo = proceso.exitValue;
       if (tema == "process-finished" && codigo == 0) {
         if (hayVersionInstaladaNueva()) {
-          ofrecerReinicio(ventana, `Bruma ${version} está instalada.`);
+          ofrecerReinicio(ventana, `Velbrum ${version} está instalada.`);
         } else {
-          barra(ventana, `Bruma ya está al día (${VERSION}).`, []);
+          barra(ventana, `Velbrum ya está al día (${VERSION}).`, []);
         }
       } else if (codigo == 126 || codigo == 127) {
         barra(ventana, "No se instaló la actualización: se canceló la contraseña de administrador.", [
@@ -394,7 +401,7 @@ function instalar(ventana, version) {
       } else {
         barra(
           ventana,
-          "No se pudo instalar la actualización. Los detalles están en /var/log/bruma-actualizar.log.",
+          "No se pudo instalar la actualización. Los detalles están en /var/log/velbrum-actualizar.log.",
           []
         );
       }
@@ -403,7 +410,7 @@ function instalar(ventana, version) {
 }
 
 function ofrecerActualizacion(ventana, version) {
-  return barra(ventana, `Hay una versión nueva de Bruma (${version}).`, [
+  return barra(ventana, `Hay una versión nueva de Velbrum (${version}).`, [
     { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) },
     {
       label: "Ahora no",
@@ -425,9 +432,9 @@ async function revisarActualizaciones(forzar = false) {
   }
   if (hayVersionInstaladaNueva()) {
     if (forzar || !reinicioOfrecido) {
-      await ofrecerReinicio(ventana, "Hay una versión nueva de Bruma instalada. Reiniciá para usarla.");
+      await ofrecerReinicio(ventana, "Hay una versión nueva de Velbrum instalada. Reiniciá para usarla.");
     }
-    return "Hay una versión nueva instalada: reiniciá Bruma.";
+    return "Hay una versión nueva instalada: reiniciá Velbrum.";
   }
   try {
     const version = await buscarVersion(ventana, forzar);
@@ -437,9 +444,9 @@ async function revisarActualizaciones(forzar = false) {
       }
       return `Hay una versión nueva: ${version}.`;
     }
-    return REPO ? "Bruma está al día." : "";
+    return REPO ? "Velbrum está al día." : "";
   } catch (error) {
-    console.warn("Bruma: no pude buscar actualizaciones", error);
+    console.warn("Velbrum: no pude buscar actualizaciones", error);
     return forzar ? "No se pudo buscar actualizaciones (¿hay internet?)." : "";
   }
 }
@@ -452,7 +459,7 @@ function abrirConTor(ventana, direccion) {
     return;
   }
   const argumentos = direccion ? ["--tor", "--", direccion] : ["--tor"];
-  correrLanzador(argumentos).catch(error => console.error("Bruma:", error));
+  correrLanzador(argumentos).catch(error => console.error("Velbrum:", error));
 }
 
 // Menú ≡ («Nueva pestaña con Tor», debajo de «Nueva ventana privada») y
@@ -466,7 +473,7 @@ function menusDeTor(ventana) {
     "ViewShowing",
     evento => {
       const vista = evento.target;
-      if (vista.id != "appMenu-mainView" || vista.querySelector("#appMenu-bruma-tor")) {
+      if (vista.id != "appMenu-mainView" || vista.querySelector("#appMenu-velbrum-tor")) {
         return;
       }
       const privada = vista.querySelector("#appMenu-new-private-window-button2");
@@ -474,7 +481,7 @@ function menusDeTor(ventana) {
         return;
       }
       const boton = doc.createXULElement("toolbarbutton");
-      boton.id = "appMenu-bruma-tor";
+      boton.id = "appMenu-velbrum-tor";
       boton.className = "subviewbutton";
       boton.setAttribute("label", "Nueva pestaña con Tor");
       boton.addEventListener("command", () => {
@@ -491,7 +498,7 @@ function menusDeTor(ventana) {
     return;
   }
   const opcion = doc.createXULElement("menuitem");
-  opcion.id = "context-bruma-tor";
+  opcion.id = "context-velbrum-tor";
   opcion.setAttribute("label", "Abrir enlace en una pestaña con Tor");
   opcion.addEventListener("command", () => {
     const direccion = ventana.gContextMenu?.linkURL;
@@ -536,21 +543,21 @@ async function cambiarPais(ventana, pais, estado) {
     estado.textContent = pais == "auto" ? "Circuitos nuevos, por cualquier país." : `Circuitos nuevos, saliendo por ${nombre}.`;
     ventana.gBrowser.selectedBrowser.reload();
   } catch (error) {
-    console.error("Bruma:", error);
+    console.error("Velbrum:", error);
     estado.textContent = "No se pudo cambiar (¿Tor está conectado?).";
   }
 }
 
 // ── Panel ────────────────────────────────────────────────────────────────
 function actualizar(panel) {
-  const lista = panel.querySelector(".bruma-pais");
+  const lista = panel.querySelector(".velbrum-pais");
   if (lista) {
     paisActual().then(pais => (lista.value = pais));
   }
   const nivel = Services.prefs.getIntPref(PREF_NIVEL, 0);
   const grupo = panel.querySelector("radiogroup");
   grupo.value = String(nivel);
-  panel.querySelector(".bruma-nivel-texto").textContent = NIVELES[nivel].texto;
+  panel.querySelector(".velbrum-nivel-texto").textContent = NIVELES[nivel].texto;
   for (const casilla of CASILLAS) {
     const elemento = panel.querySelector(`checkbox[data-id="${casilla.id}"]`);
     if (!elemento) {
@@ -562,7 +569,7 @@ function actualizar(panel) {
     elemento.nextElementSibling.textContent =
       bloqueada && casilla.bloqueada ? casilla.bloqueada : casilla.texto;
   }
-  panel.querySelector(".bruma-reiniciar").hidden = !reinicioPendiente;
+  panel.querySelector(".velbrum-reiniciar").hidden = !reinicioPendiente;
 }
 
 function crearPanel(doc) {
@@ -578,19 +585,19 @@ function crearPanel(doc) {
   panel.id = PANEL;
   panel.setAttribute("type", "arrow");
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Ajustes de Bruma");
+  panel.setAttribute("aria-label", "Ajustes de Velbrum");
 
   const caja = xul("vbox");
   caja.setAttribute("style", "padding: 12px 16px; gap: 4px; width: 26em;");
   const titulo = xul("label");
-  titulo.setAttribute("value", CON_TOR ? "Bruma con Tor" : "Bruma");
+  titulo.setAttribute("value", CON_TOR ? "Velbrum con Tor" : "Velbrum");
   titulo.setAttribute("style", "font-weight: 600; font-size: 1.15em; margin: 0 0 6px;");
   caja.append(titulo);
   if (CON_TOR) {
     caja.append(
       texto(
         "Todo pasa por Tor y cada sitio usa su propio circuito: los sitios ven una IP " +
-          "de Tor, no la tuya. Tu huella es la de Bruma, no la de Tor Browser.",
+          "de Tor, no la tuya. Tu huella es la de Velbrum, no la de Tor Browser.",
         "margin: 0 0 10px; opacity: 0.85; font-size: 0.9em;"
       )
     );
@@ -598,7 +605,7 @@ function crearPanel(doc) {
     etiquetaPais.setAttribute("value", "País de salida");
     etiquetaPais.setAttribute("style", "font-weight: 600; margin: 0;");
     const lista = xul("menulist");
-    lista.classList.add("bruma-pais");
+    lista.classList.add("velbrum-pais");
     lista.setAttribute("aria-label", "País de salida");
     const opciones = xul("menupopup");
     for (const [codigo, nombre] of PAISES) {
@@ -633,7 +640,7 @@ function crearPanel(doc) {
     grupo.append(radio);
   });
   const textoNivel = texto("", "margin: 0 0 4px; opacity: 0.8; font-size: 0.9em;");
-  textoNivel.classList.add("bruma-nivel-texto");
+  textoNivel.classList.add("velbrum-nivel-texto");
   grupo.addEventListener("command", () => {
     aplicarNivel(Number(grupo.value));
     textoNivel.textContent = NIVELES[Number(grupo.value)].texto;
@@ -656,9 +663,9 @@ function crearPanel(doc) {
   }
 
   const reiniciar = xul("button");
-  reiniciar.classList.add("bruma-reiniciar");
-  reiniciar.setAttribute("label", "Reiniciar Bruma para aplicar");
-  reiniciar.addEventListener("command", () => reiniciarBruma());
+  reiniciar.classList.add("velbrum-reiniciar");
+  reiniciar.setAttribute("label", "Reiniciar Velbrum para aplicar");
+  reiniciar.addEventListener("command", () => reiniciarVelbrum());
   const tor = xul("button");
   tor.setAttribute("label", CON_TOR ? "Nueva ventana con Tor" : "Nueva pestaña con Tor");
   tor.addEventListener("command", () => {
@@ -668,16 +675,16 @@ function crearPanel(doc) {
   caja.append(reiniciar, tor);
 
   // Versión y actualizaciones.
-  const version = texto(VERSION ? `Bruma ${VERSION}` : "Bruma", "margin: 10px 0 0; opacity: 0.7; font-size: 0.9em;");
-  version.classList.add("bruma-version");
+  const version = texto(VERSION ? `Velbrum ${VERSION}` : "Velbrum", "margin: 10px 0 0; opacity: 0.7; font-size: 0.9em;");
+  version.classList.add("velbrum-version");
   caja.append(version);
   if (!CON_TOR) {
     const buscar = xul("button");
     buscar.setAttribute("label", "Buscar actualizaciones");
     buscar.addEventListener("command", async () => {
-      version.textContent = `Bruma ${VERSION} · buscando…`;
+      version.textContent = `Velbrum ${VERSION} · buscando…`;
       const estado = await revisarActualizaciones(true);
-      version.textContent = `Bruma ${VERSION}${estado ? " · " + estado : ""}`;
+      version.textContent = `Velbrum ${VERSION}${estado ? " · " + estado : ""}`;
     });
     caja.append(buscar);
   }
@@ -732,7 +739,7 @@ function aislarCircuitos() {
             );
           }
         } catch (error) {
-          console.error("Bruma: circuito por sitio", error);
+          console.error("Velbrum: circuito por sitio", error);
         }
         respuesta.onProxyFilterResult(proxy);
       },
@@ -746,6 +753,72 @@ const ESTILO_TOR =
   "data:text/css," +
   encodeURIComponent("#nav-bar { box-shadow: inset 0 -3px #7d4698 !important; }");
 
+// ── Siempre privado y extensiones ───────────────────────────────────────
+// Con «Siempre privado» todas las ventanas son privadas, y Gecko solo corre en
+// ellas las extensiones que tienen ese permiso: sin él quedarían apagadas del
+// todo. En el primer arranque con el modo prendido, Velbrum se lo da a las que
+// ya estaban, y después a cada una que se instale. Si se lo sacás a una en
+// Complementos, queda sacado.
+const PREF_PRIVADO_EXTENSIONES = "velbrum.privado.extensiones";
+const PERMISO_PRIVADO = { permissions: ["internal:privateBrowsingAllowed"], origins: [] };
+
+async function permitirEnPrivado(addon) {
+  if (addon.type != "extension" || addon.isBuiltin || addon.isSystem || addon.incognito == "not_allowed") {
+    return;
+  }
+  if (!(addon.permissions & lazy.AddonManager.PERM_CAN_CHANGE_PRIVATEBROWSING_ACCESS)) {
+    return;
+  }
+  const politica = WebExtensionPolicy.getByID(addon.id);
+  if (politica?.privateBrowsingAllowed) {
+    return;
+  }
+  await lazy.ExtensionPermissions.add(addon.id, PERMISO_PRIVADO, politica?.extension);
+  if (addon.isActive) {
+    await addon.reload();
+  }
+}
+
+async function extensionesEnPrivado() {
+  if (!lazy.PrivateBrowsingUtils.permanentPrivateBrowsing) {
+    Services.prefs.clearUserPref(PREF_PRIVADO_EXTENSIONES);
+    return;
+  }
+  lazy.AddonManager.addAddonListener({
+    onInstalled: (addon) => permitirEnPrivado(addon).catch((e) => console.error("Velbrum: extensión en privado", e)),
+  });
+  if (Services.prefs.getBoolPref(PREF_PRIVADO_EXTENSIONES, false)) {
+    return;
+  }
+  for (const addon of await lazy.AddonManager.getAddonsByTypes(["extension"])) {
+    try {
+      await permitirEnPrivado(addon);
+    } catch (error) {
+      console.error(`Velbrum: no se pudo permitir ${addon.id} en ventanas privadas`, error);
+    }
+  }
+  Services.prefs.setBoolPref(PREF_PRIVADO_EXTENSIONES, true);
+}
+
+// Velbrum antes se llamaba Bruma: los ajustes guardados con el nombre viejo
+// (bruma.*) pasan a velbrum.* una vez.
+function migrarAjustesViejos() {
+  for (const viejo of Services.prefs.getChildList("bruma.")) {
+    const nuevo = "velbrum." + viejo.slice("bruma.".length);
+    if (Services.prefs.prefHasUserValue(viejo) && !Services.prefs.prefHasUserValue(nuevo)) {
+      const tipo = Services.prefs.getPrefType(viejo);
+      if (tipo == Services.prefs.PREF_BOOL) {
+        Services.prefs.setBoolPref(nuevo, Services.prefs.getBoolPref(viejo));
+      } else if (tipo == Services.prefs.PREF_INT) {
+        Services.prefs.setIntPref(nuevo, Services.prefs.getIntPref(viejo));
+      } else if (tipo == Services.prefs.PREF_STRING) {
+        Services.prefs.setStringPref(nuevo, Services.prefs.getStringPref(viejo));
+      }
+    }
+    Services.prefs.clearUserPref(viejo);
+  }
+}
+
 export function iniciar(ventana) {
   if (ventana) {
     ventana.addEventListener(
@@ -754,7 +827,7 @@ export function iniciar(ventana) {
         try {
           menusDeTor(ventana);
         } catch (error) {
-          console.error("Bruma: menús de Tor", error);
+          console.error("Velbrum: menús de Tor", error);
         }
       },
       { once: true }
@@ -764,6 +837,11 @@ export function iniciar(ventana) {
     return;
   }
   creado = true;
+  try {
+    migrarAjustesViejos();
+  } catch (error) {
+    console.error("Velbrum: ajustes viejos", error);
+  }
   if (CON_TOR) {
     aislarCircuitos();
   } else {
@@ -771,6 +849,7 @@ export function iniciar(ventana) {
       // PC con poca memoria y sin elección del usuario: modo liviano.
       aplicarLiviano(true);
     }
+    extensionesEnPrivado().catch((error) => console.error("Velbrum: extensiones en privado", error));
     // Actualizaciones: al minuto de abrir y después cada 3 horas (la búsqueda
     // en GitHub es una vez por día).
     lazy.setTimeout(() => revisarActualizaciones(), 60 * 1000);
@@ -780,8 +859,8 @@ export function iniciar(ventana) {
     id: ID,
     type: "button",
     defaultArea: lazy.CustomizableUI.AREA_NAVBAR,
-    label: CON_TOR ? "Bruma con Tor" : "Bruma",
-    tooltiptext: CON_TOR ? "Bruma con Tor: ajustes" : "Ajustes de privacidad de Bruma",
+    label: CON_TOR ? "Velbrum con Tor" : "Velbrum",
+    tooltiptext: CON_TOR ? "Velbrum con Tor: ajustes" : "Ajustes de privacidad de Velbrum",
     onCreated(nodo) {
       nodo.setAttribute("image", ICONO);
       if (CON_TOR) {

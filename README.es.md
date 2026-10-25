@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="iconos/bruma.svg" width="128" height="128" alt="Logo de Bruma">
+  <img src="iconos/velbrum.svg" width="128" height="128" alt="Logo de Velbrum">
 </p>
 
-<h1 align="center">Bruma</h1>
+<h1 align="center">Velbrum</h1>
 
 <p align="center">
   <b>Un navegador privado para NixOS.</b><br>
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/panel.png" width="820" alt="Bruma con su panel de ajustes abierto">
+  <img src="docs/panel.png" width="820" alt="Velbrum con su panel de ajustes abierto">
 </p>
 
 ---
@@ -31,15 +31,15 @@
 
 | | |
 |---|---|
-| 🛡️ **Privacidad como Mullvad** | Bordes de privacidad, las mismas fuentes e idioma que Mullvad Browser, aislamiento por sitio, sin WebGL 2, *service workers* ni geolocalización… Medido lado a lado con Mullvad Browser: la misma huella salvo la versión de Firefox. |
+| 🛡️ **Privacidad como Mullvad** | Bordes de privacidad, las mismas fuentes e idioma que Mullvad Browser, aislamiento por sitio, DNS cifrado… Medido lado a lado con Mullvad Browser. A diferencia de Mullvad, los sitios conservan las funciones web que esperan, así que las páginas no se rompen. |
 | 🧅 **Tor con un clic** | *Nueva pestaña con Tor* en el menú ≡ o en cualquier enlace. Una ventana privada aparte, con su propio Tor, un circuito por sitio y país de salida a elección. |
-| 🧩 **Extensiones de Firefox y de Chrome** | Un botón **Agregar a Bruma** en la Chrome Web Store y en la tienda de Edge, y cualquier archivo `.crx`. Se adaptan solas a Gecko, se verifica la firma del autor y se actualizan cada día. |
-| ⚙️ **Botón «Bruma»** | Nivel de seguridad (Estándar, Más seguro, El más seguro), bordes de privacidad, siempre privado, modo liviano y solo extensiones firmadas, en la barra de herramientas. |
+| 🧩 **Extensiones de Firefox y de Chrome** | Un botón **Agregar a Velbrum** en la Chrome Web Store y en la tienda de Edge, y cualquier archivo `.crx`. Se adaptan solas a Gecko (billeteras como MetaMask y Phantom, gestores de contraseñas, gestores de *userscripts*…), se verifica la firma del autor y se actualizan cada día. |
+| ⚙️ **Botón «Velbrum»** | Nivel de seguridad (Estándar, Más seguro, El más seguro), bordes de privacidad, siempre privado, modo liviano y solo extensiones firmadas, en la barra de herramientas. |
 | 🔒 **DNS cifrado** | DNS por HTTPS solo con Quad9, con excepciones para tu red local. |
 | 🪶 **Modo liviano** | Menos procesos y caché para computadoras con poca memoria; se activa solo con menos de 4 GB de RAM. |
-| 🔄 **Actualizaciones con un clic** | Bruma busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
+| 🔄 **Actualizaciones con un clic** | Velbrum busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
 
-> Bruma es un proyecto independiente: no está hecho ni respaldado por Mozilla,
+> Velbrum es un proyecto independiente: no está hecho ni respaldado por Mozilla,
 > LibreWolf, Mullvad ni el Tor Project. Firefox, LibreWolf, Mullvad, Tor y Chrome
 > son marcas de sus dueños.
 
@@ -51,13 +51,13 @@ Necesita NixOS en x86_64 con un nixpkgs que tenga `librewolf-unwrapped`,
 1. Pon esta carpeta junto a tu `configuration.nix`:
 
    ```bash
-   sudo git clone https://github.com/ebalia-real/bruma /etc/nixos/bruma
+   sudo git clone https://github.com/ebalia-real/velbrum /etc/nixos/velbrum
    ```
 
 2. Importa el módulo en `configuration.nix`:
 
    ```nix
-   imports = [ ./bruma/modulo.nix ];
+   imports = [ ./velbrum/modulo.nix ];
    ```
 
 3. Aplica la configuración:
@@ -70,10 +70,10 @@ Opciones, también en `configuration.nix` (todas opcionales):
 
 ```nix
 # Solo extensiones firmadas por Mozilla, fijo para todos (sin extensiones de Chrome).
-bruma.extensionesDeChrome = false;
+velbrum.extensionesDeChrome = false;
 # Dominios que se resuelven con el DNS del sistema y no con el DNS cifrado: los de
 # tu red local y, si usas una VPN con nombres propios, los de esa VPN.
-bruma.dominiosLocales = [ "lan" "home" "home.arpa" "internal" "localdomain" ];
+velbrum.dominiosLocales = [ "lan" "home" "home.arpa" "internal" "localdomain" ];
 ```
 
 La interfaz sale en el idioma del sistema (`i18n.defaultLocale`); las páginas ven
@@ -92,42 +92,43 @@ La interfaz sale en el idioma del sistema (`i18n.defaultLocale`); las páginas v
   </tr>
 </table>
 
-- **Ábrelo** desde el menú de aplicaciones: **Bruma**. Con clic derecho en el
+- **Ábrelo** desde el menú de aplicaciones: **Velbrum**. Con clic derecho en el
   ícono hay *Nueva ventana*, *Nueva ventana privada* y *Nueva ventana privada con
   Tor*.
-- **Botón «Bruma»** (el símbolo de Bruma en la barra de herramientas): abre los
-  ajustes propios de Bruma:
+- **Botón «Velbrum»** (el símbolo de Velbrum en la barra de herramientas): abre los
+  ajustes propios de Velbrum:
   - **Nivel de seguridad**: *Estándar*, *Más seguro* o *El más seguro*, como en
     Mullvad Browser;
   - **Bordes de privacidad**, que se quitan y se ponen al instante;
-  - **Siempre privado, como Mullvad**: no guarda historial, cookies ni caché;
+  - **Siempre privado, como Mullvad**: no guarda historial, cookies ni caché
+    (tus extensiones siguen funcionando: Velbrum les da permiso en ventanas privadas);
   - **Modo liviano** para computadoras con poca memoria;
   - **Solo extensiones firmadas por Mozilla**;
   - **Nueva pestaña con Tor**.
 - **Tor desde el menú ≡**: *Nueva pestaña con Tor*, justo debajo de *Nueva
   ventana privada*; y en cualquier enlace, clic derecho → *Abrir enlace en una
   pestaña con Tor*.
-- **Desde una terminal**: `bruma`, `bruma https://ejemplo.com`, `bruma --privada`,
-  `bruma --tor`. `bruma --ayuda` muestra todas las opciones.
+- **Desde una terminal**: `velbrum`, `velbrum https://ejemplo.com`, `velbrum --privada`,
+  `velbrum --tor`. `velbrum --ayuda` muestra todas las opciones.
 
 ## Ventana con Tor
 
-Una ventana de Bruma aparte que sale a internet por la red Tor: los sitios ven
+Una ventana de Velbrum aparte que sale a internet por la red Tor: los sitios ven
 una dirección de Tor en lugar de la tuya, y tu proveedor de internet solo ve que
 usas Tor. Si la ventana con Tor ya está abierta, se agrega una pestaña ahí. No
 puede ser una pestaña con Tor dentro de una ventana normal: compartiría cookies
 y huella con tus otras pestañas.
 
-- **Aparte de tu Bruma normal**: su propio perfil, siempre privado (al cerrarla
+- **Aparte de tu Velbrum normal**: su propio perfil, siempre privado (al cerrarla
   no queda nada), sin tus cookies ni tu historial.
 - **Su propio Tor**: arranca solo para esa ventana y se apaga cuando cierras la
   última; no queda un servicio corriendo ni gastando memoria. Escucha en un
-  socket que solo tu usuario puede abrir. Bruma espera a que Tor se conecte (la
+  socket que solo tu usuario puede abrir. Velbrum espera a que Tor se conecte (la
   primera vez puede tardar un minuto) y abre check.torproject.org para
   confirmarlo.
 - **Un circuito por sitio**, como Tor Browser: cada sitio ve otra dirección de
   Tor, así no se pueden relacionar entre sí por la IP.
-- **País de salida** (botón «Bruma» de esa ventana, o `bruma --tor-pais de`):
+- **País de salida** (botón «Velbrum» de esa ventana, o `velbrum --tor-pais de`):
   *Automático* (el más anónimo) o Alemania, Países Bajos, Estados Unidos, Suecia,
   Austria, Francia, Noruega, Suiza, Rumania, Finlandia, Islandia, Dinamarca o
   Luxemburgo, los países con suficientes nodos de salida de Tor. Se aplica al
@@ -140,14 +141,14 @@ y huella con tus otras pestañas.
   siempre puestos, sin la extensión de las tiendas (su conversor no pasa por
   Tor) y sin instalar extensiones.
 
-> **No es Tor Browser.** Los sitios ven la huella de Bruma (Firefox 156 con
+> **No es Tor Browser.** Los sitios ven la huella de Velbrum (Firefox 156 con
 > *resistFingerprinting*), no la de Tor Browser, que es igual para millones de
 > personas. Oculta tu IP, pero si necesitas anonimato de verdad (periodismo,
 > riesgo real), usa Tor Browser. Algunos sitios bloquean Tor o piden captchas.
 
 ## Privacidad
 
-Bruma parte de LibreWolf, que ya trae resistencia a la huella digital
+Velbrum parte de LibreWolf, que ya trae resistencia a la huella digital
 (*resistFingerprinting*), protección estricta contra el rastreo, uBlock Origin,
 modo solo HTTPS, Global Privacy Control, sin telemetría, sin Safe Browsing de
 Google, sin gestor de contraseñas ni DRM, y borra cookies y caché al cerrar.
@@ -157,26 +158,33 @@ Y le suma lo que Mullvad Browser hace y LibreWolf no:
 | Qué | Para qué |
 |---|---|
 | Bordes de privacidad (*letterboxing*) | El área de la página se redondea a tamaños comunes (por ejemplo 1200×600 en vez de 1323×683); los bordes que ves son lo que sobra. El tamaño exacto de tu ventana, que ayuda a identificarte, no llega a los sitios. |
-| Páginas en inglés | Los sitios ven `en-US`, como todos los usuarios de Mullvad y de Tor; la interfaz de Bruma sigue en tu idioma. |
+| Páginas en inglés | Los sitios ven `en-US`, como todos los usuarios de Mullvad y de Tor; la interfaz de Velbrum sigue en tu idioma. |
 | Las fuentes de Mullvad Browser | Las páginas solo ven las fuentes que trae Mullvad Browser, con la misma fuente para cada idioma, no las de tu computadora. |
 | DNS cifrado (Quad9) | Tu proveedor de internet no ve qué sitios visitas. Quad9 también bloquea dominios de malware. |
-| Aislamiento por sitio | Cookies, caché, conexiones y almacenamiento separados por sitio, como en Tor y Mullvad. |
-| Menos superficie de ataque | Sin *service workers*, notificaciones push, MIDI, geolocalización, WebGL 2 ni SharedArrayBuffer. |
-| WebRTC solo por servidores intermedios | La otra punta de una llamada no ve tu IP, y no se filtran direcciones locales ni de una VPN. |
+| Aislamiento por sitio | Cookies, caché, conexiones y almacenamiento separados por sitio (protección total de cookies y partición de red de Firefox). La ventana con Tor suma además el aislamiento *first-party* de Tor Browser. |
+| Funciones que no revelan nada | La geolocalización existe pero no tiene de dónde sacar la ubicación (ni servicio de red, ni GeoClue, ni GPS). Las llaves de acceso (*passkeys*), los *service workers*, SharedArrayBuffer (solo en sitios aislados) y WebGL 2 funcionan como en Firefox, así que los sitios que cuentan con ellos no se rompen. Sin notificaciones push ni MIDI. La ventana con Tor los apaga todos, como Tor Browser. |
+| WebRTC sin direcciones locales | No se filtran direcciones locales ni de una VPN. Las llamadas conectan como en Firefox (Mullvad solo permite llamadas por servidores intermedios, y así no conectan las de Discord ni las de WhatsApp Web). |
 | Huella | Cuota de almacenamiento fija, sin colores ni acento del sistema, sin identificadores de sesión TLS. |
 | Sin conexiones solas a Mozilla | Sin push, sin plugins de video (Widevine/OpenH264), sin ajustes remotos de la protección contra huella. |
 | Proxy que no se puede saltear | Con la ventana con Tor o una VPN, ni las extensiones ni una caída del proxy hacen que se conecte directo. |
 | **Nivel de seguridad** | *Estándar*: todo funciona. *Más seguro*: sin el compilador rápido de JavaScript ni WebAssembly, sin algunas fuentes y símbolos matemáticos, audio y video con un clic. *El más seguro*: además sin JavaScript, SVG, WebGL ni fuentes descargadas. Como en Mullvad, pero con preferencias de Gecko en lugar de NoScript. |
 | **Siempre privado** (opcional) | Lo que Mullvad hace siempre: no se guarda historial, cookies ni caché en el disco. |
 
-Donde Bruma es más estricto que Mullvad: la protección contra rastreo de Firefox
+Donde Velbrum es más estricto que Mullvad: la protección contra rastreo de Firefox
 sigue activa (Mullvad la apaga), la revocación de certificados (CRLite) también,
-y WebGL pide permiso en cada sitio, como en LibreWolf.
+y WebGL pide permiso en cada sitio, como en LibreWolf. Donde es más compatible:
+Mullvad quita del todo algunas funciones web, y los sitios que cuentan con ellas
+no cargan (metamask.io sin WebGL 2, los inicios de sesión de Google y Microsoft
+sin `navigator.credentials`, WhatsApp Web sin *service workers*). Velbrum las
+deja, igual que Firefox normal, así que tenerlas no te distingue entre los
+usuarios de Firefox. Probado con 40 sitios exigentes (billeteras y casas de
+cambio, Google, Microsoft, WhatsApp, Discord, Zoom, Figma, Notion, Spotify…):
+cargan igual que en Firefox, sin errores por funciones que falten.
 
 <details>
 <summary><b>Resultados de las pruebas</b></summary>
 
-Medido con Bruma abierto normalmente (las herramientas de automatización apagan
+Medido con Velbrum abierto normalmente (las herramientas de automatización apagan
 parte de la protección), con la interfaz en español y las páginas en inglés:
 
 - **EFF Cover Your Tracks**: «protección fuerte contra el rastreo web»; bloquea
@@ -194,9 +202,9 @@ parte de la protección), con la interfaz en español y las páginas en inglés:
 - **Lado a lado con Mullvad Browser 15.0.23** (la misma página de prueba en los
   dos): iguales idioma, zona horaria, cantidad de núcleos, tamaño de pantalla y
   ventana, densidad de píxeles, fuentes visibles, medidas de las fuentes, huella
-  de audio, GPC, visor de PDF y cuota de almacenamiento, y ninguno expone
-  *service workers*, geolocalización, MIDI, SharedArrayBuffer, WebGL 2 ni llaves
-  de acceso. De las 246 preferencias de privacidad en las que Bruma difería de
+  de audio, GPC, visor de PDF y cuota de almacenamiento. Velbrum además expone
+  la geolocalización (sin fuente), las llaves de acceso, los *service workers* y
+  WebGL 2, como Firefox, por compatibilidad. De las 246 preferencias de privacidad en las que Velbrum difería de
   Mullvad, solo quedan las que son a propósito. Diferencias que quedan, propias
   de Firefox 156 frente al 140 de Mullvad (ninguna preferencia las cambia): la
   versión de Firefox, los puntos táctiles (5 contra 0) y el formato de
@@ -218,29 +226,44 @@ base de datos comparte esos valores.
 
 - En la [Chrome Web Store](https://chromewebstore.google.com) y en la
   [tienda de Edge](https://microsoftedge.microsoft.com/addons), el botón de la
-  tienda dice **Agregar a Bruma**: haz clic y confirma en el cartel de
+  tienda dice **Agregar a Velbrum**: haz clic y confirma en el cartel de
   instalación de Firefox. Los avisos de «cámbiate a Chrome/Edge» desaparecen.
-- **Cualquier archivo `.crx`** que descargues: al terminar la descarga, Bruma
+- **Cualquier archivo `.crx`** que descargues: al terminar la descarga, Velbrum
   muestra una notificación; haz clic en ella y confirma. Un `.crx` abierto desde
   el explorador de archivos se instala igual.
-- **Desde una terminal**: `bruma --extension-chrome <ID, URL de la tienda o archivo.crx>`.
+- **Desde una terminal**: `velbrum --extension-chrome <ID, URL de la tienda o archivo.crx>`.
 - **Se actualizan cada día** desde la tienda de la que vino cada una; nunca a una
   versión anterior, y nunca con permisos nuevos sin preguntarte.
 
 Las extensiones de Chrome y de Firefox usan casi la misma API (WebExtensions).
-Bruma descarga la extensión, verifica la firma del autor (CRX3, como Chrome), la
+Velbrum descarga la extensión, verifica la firma del autor (CRX3, como Chrome), la
 adapta y la instala: el *service worker* de fondo de Chrome pasa a ser una página
-de fondo de Gecko, se emulan las API que faltan (`chrome.offscreen`,
-`chrome.sidePanel`, `runtime.getContexts`, `storage.managed`…) y se quita del
-manifiesto lo que Gecko rechaza. Probado con Dark Reader, Google Translate,
-uBlock Origin Lite, Tampermonkey, Bitwarden, Return YouTube Dislike, Xbox New Tab
-y Block Microsoft Login Popup.
+de fondo de Gecko que no se suspende, las páginas propias de la extensión le
+hablan con un `navigator.serviceWorker` emulado (`clients`, `postMessage`,
+puertos de mensajes), se emulan las API que faltan (`chrome.offscreen`,
+`chrome.sidePanel`, `runtime.getContexts`, `storage.managed`,
+`runtime.lastError`…), los scripts de contenido se comportan como en Chrome
+donde Gecko difiere (`window.chrome`, datos de `CustomEvent` que la página puede
+leer), se descartan las reglas y opciones que Gecko rechaza, y se quita del
+manifiesto lo que Gecko no acepta. Cuando esta capa mejora, las extensiones
+instaladas se vuelven a convertir con la siguiente actualización diaria.
 
-Mozilla no puede firmar extensiones de Chrome, así que Bruma acepta extensiones
+Probado con 26 extensiones que suelen dar problemas fuera de Chrome: MetaMask,
+Phantom, Rabby, Coinbase Wallet, Trust Wallet, OKX Wallet, Bitwarden, 1Password,
+LastPass, Proton Pass, Dashlane, Grammarly, Honey, Adobe Acrobat, Adblock Plus,
+uBlock Origin Lite, Dark Reader, Stylus, Tampermonkey, Violentmonkey,
+SponsorBlock, Video Speed Controller, Wappalyzer, React Developer Tools, Loom y
+Google Translate. Todas se instalan y arrancan, y las billeteras inyectan
+`window.ethereum` y `window.solana` en las páginas. Lo que Gecko directamente no
+tiene no puede funcionar (por ejemplo, la grabación de pantalla de Loom). Si una
+extensión también tiene versión para Firefox en addons.mozilla.org, esa sigue
+siendo la mejor opción.
+
+Mozilla no puede firmar extensiones de Chrome, así que Velbrum acepta extensiones
 sin firma, siempre con el cartel de confirmación de Firefox. Para aceptar **solo
-extensiones firmadas por Mozilla**, marca esa casilla en el botón «Bruma» (las
+extensiones firmadas por Mozilla**, marca esa casilla en el botón «Velbrum» (las
 extensiones de Chrome se desactivan, no se borran) o usa
-`bruma.extensionesDeChrome = false` para fijarlo en todo el sistema.
+`velbrum.extensionesDeChrome = false` para fijarlo en todo el sistema.
 
 <details>
 <summary><b>Seguridad del conversor de extensiones</b></summary>
@@ -251,7 +274,7 @@ extensiones de Chrome se desactivan, no se borran) o usa
 - **Pedidos de instalación**: solo se aceptan desde las páginas de las dos
   tiendas (marco principal) y solo después de un clic real tuyo; un script de la
   página no puede hacer clic por ti.
-- **Host nativo**: solo la extensión de Bruma puede hablarle; valida los ID y
+- **Host nativo**: solo la extensión de Velbrum puede hablarle; valida los ID y
   las rutas, y nunca usa una terminal.
 - **Descargas**: HTTPS a los servidores de cada tienda, el hash que anuncia la
   tienda, la firma CRX3 del autor y que el ID firmado sea el pedido. Rechaza
@@ -264,7 +287,7 @@ extensiones de Chrome se desactivan, no se borran) o usa
   firma de Mozilla también en ese caso.
 
 Para repetir las pruebas de seguridad del conversor (necesita internet), desde
-la carpeta de Bruma:
+la carpeta de Velbrum:
 
 ```bash
 python3 -I pruebas/seguridad.py
@@ -274,7 +297,7 @@ python3 -I pruebas/seguridad.py
 
 ## Modo liviano
 
-Para computadoras con poca memoria: marca *Modo liviano* en el botón «Bruma»; se
+Para computadoras con poca memoria: marca *Modo liviano* en el botón «Velbrum»; se
 activa solo con menos de 4 GB de RAM. Usa menos procesos y caché, no guarda en
 memoria las páginas anteriores y descarga las pestañas que no usas cuando falta
 memoria. El aislamiento de sitios (Fission) sigue activo: es una protección de
@@ -288,27 +311,27 @@ cómodo.
 
 ## Actualizaciones
 
-- **Versiones nuevas de Bruma**: una vez por día Bruma busca una versión nueva
+- **Versiones nuevas de Velbrum**: una vez por día Velbrum busca una versión nueva
   en GitHub. Si la hay, una barra ofrece **Instalar y reiniciar** o **Ahora
   no**. Instalar pide la contraseña de administrador; el ayudante
-  `bruma-actualizar` baja la versión, comprueba que esté **firmada con la clave
-  de Bruma** (la clave pública sale del paquete instalado, no de la descarga),
-  lleva la carpeta de Bruma a esa versión y actualiza el sistema. Después,
-  **Reiniciar ahora** vuelve a abrir Bruma en la versión nueva con tus
-  pestañas. Botón «Bruma» → *Buscar actualizaciones* busca en el momento.
+  `velbrum-actualizar` baja la versión, comprueba que esté **firmada con la clave
+  de Velbrum** (la clave pública sale del paquete instalado, no de la descarga),
+  lleva la carpeta de Velbrum a esa versión y actualiza el sistema. Después,
+  **Reiniciar ahora** vuelve a abrir Velbrum en la versión nueva con tus
+  pestañas. Botón «Velbrum» → *Buscar actualizaciones* busca en el momento.
 - **Después de tus propias actualizaciones** (por ejemplo `nix flake update`
-  para los parches de seguridad de Firefox), Bruma nota la versión nueva y
+  para los parches de seguridad de Firefox), Velbrum nota la versión nueva y
   ofrece reiniciar.
-- **Requisitos**: la carpeta de Bruma es un clon de git (como en
+- **Requisitos**: la carpeta de Velbrum es un clon de git (como en
   [Instalación](#instalación)) sin cambios locales. El comando por defecto es
   `nixos-rebuild switch`, que en sistemas con flakes usa `/etc/nixos`.
 - **Opciones**:
 
   ```nix
-  bruma.actualizador.buscar = false;                       # no conectarse a GitHub
-  bruma.actualizador.repositorio = "ebalia-real/bruma";    # de dónde salen las versiones
-  bruma.actualizador.carpeta = "/etc/nixos/bruma";         # el clon de git que se actualiza
-  bruma.actualizador.comando = "/run/current-system/sw/bin/nixos-rebuild switch";
+  velbrum.actualizador.buscar = false;                       # no conectarse a GitHub
+  velbrum.actualizador.repositorio = "ebalia-real/velbrum";    # de dónde salen las versiones
+  velbrum.actualizador.carpeta = "/etc/nixos/velbrum";         # el clon de git que se actualiza
+  velbrum.actualizador.comando = "/run/current-system/sw/bin/nixos-rebuild switch";
   ```
 
 - **Seguridad**: solo se instalan etiquetas `vAAAA.MM.DD` firmadas con una clave
@@ -317,10 +340,10 @@ cómodo.
   ganchos, así nada de lo que haya en el repositorio corre con permisos de
   administrador; como root solo corre la actualización del sistema. Si la
   carpeta tiene cambios locales, no se toca nada. Registro:
-  `/var/log/bruma-actualizar.log`.
+  `/var/log/velbrum-actualizar.log`.
 
 <details>
-<summary><b>Publicar una versión (para quien mantiene Bruma)</b></summary>
+<summary><b>Publicar una versión (para quien mantiene Velbrum)</b></summary>
 
 1. Sube el número de `VERSION` (por ejemplo `2026.10.22`, o `2026.10.22.1` para
    una segunda versión ese día) y haz commit.
@@ -328,16 +351,16 @@ cómodo.
    `firmas/claves-permitidas`):
 
    ```bash
-   git -c gpg.format=ssh -c user.signingkey=~/.ssh/bruma-firma.pub tag -s v2026.10.22 -m "Bruma 2026.10.22"
+   git -c gpg.format=ssh -c user.signingkey=~/.ssh/velbrum-firma.pub tag -s v2026.10.22 -m "Velbrum 2026.10.22"
    ```
 
 3. Sube el commit y la etiqueta: `git push origin main v2026.10.22`.
 
 </details>
 
-## Lo que Bruma no puede ocultar
+## Lo que Velbrum no puede ocultar
 
-Ningún navegador es totalmente privado. Bruma protege lo que pasa dentro del
+Ningún navegador es totalmente privado. Velbrum protege lo que pasa dentro del
 navegador, pero:
 
 - **Tu IP se ve** en las ventanas normales (y con ella tu proveedor y tu ciudad
@@ -347,14 +370,14 @@ navegador, pero:
   sitios puede leer las páginas que abres.
 - **Conexiones automáticas**: los servicios de Mozilla que LibreWolf mantiene
   (listas de bloqueo, revocación de certificados, actualizaciones de
-  complementos); una vez al día, GitHub para buscar una versión nueva de Bruma
-  (ve tu IP; `bruma.actualizador.buscar = false` lo apaga); y una vez al día,
+  complementos); una vez al día, GitHub para buscar una versión nueva de Velbrum
+  (ve tu IP; `velbrum.actualizador.buscar = false` lo apaga); y una vez al día,
   la tienda de Chrome o de Edge para buscar versiones nuevas de tus extensiones
   de Chrome (ven tu IP y los ID de esas extensiones; con las firmas exigidas esa
   búsqueda no se hace).
 - **Huella**: coincide con la de Mullvad Browser salvo la versión de Firefox y
   dos detalles que dependen de ella; alcanza para que un sitio sepa que no usas
-  Mullvad ni Tor Browser, y los usuarios de Bruma son pocos.
+  Mullvad ni Tor Browser, y los usuarios de Velbrum son pocos.
 - **En tu computadora** queda el historial (las cookies y la caché se borran al
   cerrar), salvo con *Siempre privado*. Las ventanas privadas y la ventana con
   Tor no guardan nada.
@@ -367,28 +390,25 @@ En `about:config`:
 |---|---|
 | Ver las páginas en tu idioma (te hace más fácil de distinguir) | `privacy.spoof_english` → `1` |
 | Usar WebGL sin que pregunte | `librewolf.webgl.prompt` → `false` |
-| Usar llaves de acceso (*passkeys*) | `security.webauth.webauthn` → `true` |
-| Arreglar llamadas que no conectan | `media.peerconnection.ice.relay_only` → `false` |
-| Usar aplicaciones web sin conexión (*service workers*) | `dom.serviceWorkers.enabled` → `true` |
-| Arreglar inicios de sesión entre sitios | `privacy.firstparty.isolate` → `false` |
+| Ser tan estricto como Mullvad (se rompen algunos sitios y extensiones) | `privacy.firstparty.isolate` → `true`, `security.webauth.webauthn` → `false`, `dom.serviceWorkers.enabled` → `false`, `geo.enabled` → `false`, `media.peerconnection.ice.relay_only` → `true` |
 
 Los ajustes personales permanentes van en un archivo `user.js` en
-`~/.local/share/bruma/gecko/`.
+`~/.local/share/velbrum/gecko/`.
 
 <details>
 <summary><b>Marca e idioma</b></summary>
 
-Bruma usa el motor de LibreWolf, pero LibreWolf no aparece dentro del
-navegador: el logo, los íconos, la página de nueva pestaña, *Acerca de Bruma*,
-los ajustes, el menú de ayuda y `about:support` dicen Bruma. Se hace al
+Velbrum usa el motor de LibreWolf, pero LibreWolf no aparece dentro del
+navegador: el logo, los íconos, la página de nueva pestaña, *Acerca de Velbrum*,
+los ajustes, el menú de ayuda y `about:support` dicen Velbrum. Se hace al
 compilar, reemplazando archivos dentro de los `omni.ja` de LibreWolf
 (`marca/textos.py` y `marca/codigo.py`). Tampoco contacta los servidores de
 LibreWolf: uBlock Origin baja su índice de listas de sus propias fuentes.
 
 Los paquetes de idioma de Mozilla dicen «Firefox», así que el servicio de
-sistema `bruma-idioma` baja el de tu idioma y versión, le pone la marca Bruma y
-lo deja en `/var/lib/bruma/idioma` (solo root puede modificarlo); una política
-del navegador lo instala desde ahí. Sin internet, Bruma abre en inglés y el
+sistema `velbrum-idioma` baja el de tu idioma y versión, le pone la marca Velbrum y
+lo deja en `/var/lib/velbrum/idioma` (solo root puede modificarlo); una política
+del navegador lo instala desde ahí. Sin internet, Velbrum abre en inglés y el
 servicio reintenta cada 10 minutos.
 
 Si una actualización de LibreWolf cambia algo de lo que esto usa, la compilación
@@ -401,22 +421,22 @@ muestra un aviso (`AVISO`) sin cortar la actualización del sistema.
 
 | Qué | Dónde |
 |---|---|
-| Perfil (historial, extensiones, ajustes) | `~/.local/share/bruma/gecko/` |
-| Extensiones de Chrome y Edge convertidas | `~/.local/share/bruma/extensiones-chrome/` |
-| Perfil de la ventana con Tor (siempre privado) | `~/.local/share/bruma/tor/` |
-| Datos y registro de Tor | `~/.local/share/bruma/tor-red/` |
-| Sockets de Tor (SOCKS y control) | `/run/user/<uid>/bruma-tor/` (solo tu usuario) |
+| Perfil (historial, extensiones, ajustes) | `~/.local/share/velbrum/gecko/` |
+| Extensiones de Chrome y Edge convertidas | `~/.local/share/velbrum/extensiones-chrome/` |
+| Perfil de la ventana con Tor (siempre privado) | `~/.local/share/velbrum/tor/` |
+| Datos y registro de Tor | `~/.local/share/velbrum/tor-red/` |
+| Sockets de Tor (SOCKS y control) | `/run/user/<uid>/velbrum-tor/` (solo tu usuario) |
 
 | Archivo | Qué hace |
 |---|---|
-| `modulo.nix` | Módulo NixOS: instala Bruma, el servicio del idioma, el temporizador de actualización de extensiones y el refresco del menú de GNOME. |
-| `default.nix` | El paquete: LibreWolf + ajustes, fuentes de Mullvad, la extensión y el lanzador de Bruma. |
+| `modulo.nix` | Módulo NixOS: instala Velbrum, el servicio del idioma, el temporizador de actualización de extensiones y el refresco del menú de GNOME. |
+| `default.nix` | El paquete: LibreWolf + ajustes, fuentes de Mullvad, la extensión y el lanzador de Velbrum. |
 | `gecko/ajustes.cfg` | Los ajustes de Mullvad Browser que se suman a los de LibreWolf. |
-| `lanzador.sh` | El comando `bruma` (con la ventana con Tor). |
-| `extension/` | La extensión de Bruma: los botones de las tiendas y la instalación de `.crx`. |
+| `lanzador.sh` | El comando `velbrum` (con la ventana con Tor). |
+| `extension/` | La extensión de Velbrum: los botones de las tiendas y la instalación de `.crx`. |
 | `host/` | Host nativo y conversor de extensiones de Chrome, capa de compatibilidad, cambio de país de Tor, y el actualizador (`actualizar.sh` y su acción de polkit). |
-| `VERSION`, `firmas/` | La versión de Bruma y las claves públicas que pueden firmar versiones. |
-| `marca/` | La marca, el botón «Bruma» (`ajustes-bruma.sys.mjs`) y los scripts que los aplican. |
+| `VERSION`, `firmas/` | La versión de Velbrum y las claves públicas que pueden firmar versiones. |
+| `marca/` | La marca, el botón «Velbrum» (`ajustes-velbrum.sys.mjs`) y los scripts que los aplican. |
 | `iconos/` | El logo: un globo (la web) que se desarma en jirones de niebla. |
 | `pruebas/seguridad.py` | Pruebas de seguridad del conversor de extensiones. |
 
@@ -429,13 +449,13 @@ todos sus usuarios sean idénticos, y cualquier extensión la rompe. Además, en
 nixpkgs suele ir atrasado en parches de seguridad.
 
 **¿Por qué no un motor Chromium?** No existe un motor que mezcle Gecko y
-Chromium. Bruma usa un solo motor (Gecko) y adapta las extensiones de Chrome, que
+Chromium. Velbrum usa un solo motor (Gecko) y adapta las extensiones de Chrome, que
 casi siempre funcionan.
 
 **¿Es totalmente anónimo?** Ningún navegador lo es. Mira
-[Lo que Bruma no puede ocultar](#lo-que-bruma-no-puede-ocultar).
+[Lo que Velbrum no puede ocultar](#lo-que-velbrum-no-puede-ocultar).
 
 ## Licencia
 
-Bruma se publica bajo la [Mozilla Public License 2.0](LICENSE) (MPL-2.0), la
+Velbrum se publica bajo la [Mozilla Public License 2.0](LICENSE) (MPL-2.0), la
 misma familia de licencias que Firefox y LibreWolf.

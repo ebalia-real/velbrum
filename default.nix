@@ -1,4 +1,4 @@
-# Paquete del navegador Bruma (ver README.md): LibreWolf de nixpkgs con los
+# Paquete del navegador Velbrum (ver README.md): LibreWolf de nixpkgs con los
 # ajustes de privacidad de Mullvad Browser, que además instala extensiones de
 # Chrome (de la Chrome Web Store o de archivos .crx) adaptándolas a Gecko.
 # No compila nada: usa el LibreWolf del caché de NixOS y se actualiza con
@@ -8,44 +8,44 @@
   # Paquetes de idioma de Mozilla, en orden de preferencia (por ejemplo
   # [ "es-MX" "es" "es-ES" ]); los arma modulo.nix con el idioma del sistema.
   idiomas ? [ ],
-  # Donde los deja el servicio bruma-idioma (solo root puede escribir ahí).
-  carpetaIdioma ? "/var/lib/bruma/idioma",
-  # true: Bruma instala extensiones de Chrome adaptadas, que no pueden llevar
+  # Donde los deja el servicio velbrum-idioma (solo root puede escribir ahí).
+  carpetaIdioma ? "/var/lib/velbrum/idioma",
+  # true: Velbrum instala extensiones de Chrome adaptadas, que no pueden llevar
   # la firma de Mozilla (se aceptan extensiones sin firma, con el cartel de
   # confirmación). false: solo extensiones firmadas por Mozilla, sin la parte
-  # de Chrome. Lo elige modulo.nix (opción bruma.extensionesDeChrome).
+  # de Chrome. Lo elige modulo.nix (opción velbrum.extensionesDeChrome).
   extensionesDeChrome ? true,
   # Dominios que no van por el DNS cifrado sino por el del sistema (redes
   # locales y VPN con nombres propios); lo elige modulo.nix (opción
-  # bruma.dominiosLocales).
+  # velbrum.dominiosLocales).
   dominiosLocales ? [ "lan" "home" "home.arpa" "internal" "localdomain" ],
   # Actualizador (ver README.md, «Updates»; lo eligen las opciones
-  # bruma.actualizador.* de modulo.nix): de qué repositorio de GitHub salen
-  # las versiones firmadas, dónde está la carpeta de Bruma que se actualiza y
-  # con qué comando se aplica. Sin repositorio, Bruma no busca versiones nuevas.
-  repoActualizaciones ? "ebalia-real/bruma",
-  carpetaBruma ? "/etc/nixos/bruma",
+  # velbrum.actualizador.* de modulo.nix): de qué repositorio de GitHub salen
+  # las versiones firmadas, dónde está la carpeta de Velbrum que se actualiza y
+  # con qué comando se aplica. Sin repositorio, Velbrum no busca versiones nuevas.
+  repoActualizaciones ? "ebalia-real/velbrum",
+  carpetaVelbrum ? "/etc/nixos/velbrum",
   comandoActualizar ? "/run/current-system/sw/bin/nixos-rebuild switch",
 }:
 let
   inherit (pkgs) lib;
 
   # ── Ícono ───────────────────────────────────────────────────────────────
-  # De 16 a 32 px se usa una versión simplificada (iconos/bruma-chico.svg),
+  # De 16 a 32 px se usa una versión simplificada (iconos/velbrum-chico.svg),
   # que se lee mejor en pestañas y en la barra de tareas.
-  iconos = pkgs.runCommand "bruma-iconos" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
-    install -Dm644 ${./iconos/bruma.svg} $out/share/icons/hicolor/scalable/apps/bruma.svg
+  iconos = pkgs.runCommand "velbrum-iconos" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
+    install -Dm644 ${./iconos/velbrum.svg} $out/share/icons/hicolor/scalable/apps/velbrum.svg
     for t in 16 24 32 48 64 96 128 256; do
-      svg=${./iconos/bruma.svg}
-      [ $t -le 32 ] && svg=${./iconos/bruma-chico.svg}
+      svg=${./iconos/velbrum.svg}
+      [ $t -le 32 ] && svg=${./iconos/velbrum-chico.svg}
       mkdir -p $out/share/icons/hicolor/''${t}x''${t}/apps
-      rsvg-convert -w $t -h $t $svg -o $out/share/icons/hicolor/''${t}x''${t}/apps/bruma.png
+      rsvg-convert -w $t -h $t $svg -o $out/share/icons/hicolor/''${t}x''${t}/apps/velbrum.png
     done
   '';
 
   # ── Extensión propia: instala las extensiones de Chrome ─────────────────
   # Va en la carpeta de la aplicación (browser/extensions): se activa sola.
-  xpiBruma = pkgs.runCommand "bruma-extension-xpi" { nativeBuildInputs = [ pkgs.zip ]; } ''
+  xpiVelbrum = pkgs.runCommand "velbrum-extension-xpi" { nativeBuildInputs = [ pkgs.zip ]; } ''
     mkdir -p fuente/iconos $out
     cp ${./extension/manifest.json} fuente/manifest.json
     cp ${./extension/background.js} fuente/background.js
@@ -53,20 +53,20 @@ let
     cp ${./extension/edge.js} fuente/edge.js
     cp ${./extension/aviso.js} fuente/aviso.js
     for t in 48 96; do
-      cp ${iconos}/share/icons/hicolor/''${t}x''${t}/apps/bruma.png fuente/iconos/bruma-$t.png
+      cp ${iconos}/share/icons/hicolor/''${t}x''${t}/apps/velbrum.png fuente/iconos/velbrum-$t.png
     done
     cd fuente
-    zip -X -r -q $out/chrome@bruma.xpi .
-    ${pkgs.unzip}/bin/unzip -l $out/chrome@bruma.xpi | grep -q " background.js$"
+    zip -X -r -q $out/chrome@velbrum.xpi .
+    ${pkgs.unzip}/bin/unzip -l $out/chrome@velbrum.xpi | grep -q " background.js$"
   '';
 
   # ── Fuentes de Mullvad Browser ──────────────────────────────────────────
   # Las páginas solo ven estas fuentes (las mismas que cualquier usuario de
   # Mullvad Browser), no las de la PC: así las fuentes no te distinguen. Se
   # copian para no depender del paquete entero de Mullvad Browser.
-  fuentes = pkgs.runCommand "bruma-fuentes" { } ''
+  fuentes = pkgs.runCommand "velbrum-fuentes" { } ''
     origen=${pkgs.mullvad-browser}/share/mullvad-browser/fonts
-    destino=$out/share/bruma/fuentes
+    destino=$out/share/velbrum/fuentes
     mkdir -p $destino
     cp $origen/*.ttf $origen/*.otf $origen/000_README.txt $destino/
     sed "s|<dir>$origen</dir>|<dir>$destino</dir>|" $origen/fonts.conf > $destino/fonts.conf
@@ -77,7 +77,7 @@ let
   # Qué fuente usa cada idioma (serif, sans-serif, monospace) y la lista de
   # fuentes permitidas, tal cual Mullvad Browser: sacado de sus preferencias
   # al compilar, para que siga igual cuando Mullvad se actualice.
-  fuentesMullvadCfg = pkgs.runCommand "bruma-fuentes-mullvad.cfg" { nativeBuildInputs = [ pkgs.unzip ]; } ''
+  fuentesMullvadCfg = pkgs.runCommand "velbrum-fuentes-mullvad.cfg" { nativeBuildInputs = [ pkgs.unzip ]; } ''
     unzip -p ${pkgs.mullvad-browser}/share/mullvad-browser/browser/omni.ja defaults/preferences/001-base-profile.js \
       | grep '^pref("font\.' | sed 's/^pref(/defaultPref(/' > lineas
     test "$(wc -l < lineas)" -gt 50
@@ -88,21 +88,21 @@ let
   # ── LibreWolf + ajustes de Mullvad ──────────────────────────────────────
   librewolf = pkgs.librewolf-unwrapped;
   versionFirefox = builtins.head (lib.splitString "-" librewolf.version);
-  # Versión de Bruma (la de la etiqueta firmada vAAAA.MM.DD que se publica).
-  versionBruma = lib.fileContents ./VERSION;
-  # Versión de Chrome que Bruma dice ser al pedir extensiones a la tienda.
+  # Versión de Velbrum (la de la etiqueta firmada vAAAA.MM.DD que se publica).
+  versionVelbrum = lib.fileContents ./VERSION;
+  # Versión de Chrome que Velbrum dice ser al pedir extensiones a la tienda.
   versionChrome = pkgs.ungoogled-chromium.version;
 
   politicas = {
-    # LibreWolf no deja instalar paquetes de idioma; Bruma sí, para tener la
-    # interfaz en tu idioma. El paquete (con la marca de Bruma) lo prepara el
-    # servicio bruma-idioma en una carpeta de root y lo instala esta política:
+    # LibreWolf no deja instalar paquetes de idioma; Velbrum sí, para tener la
+    # interfaz en tu idioma. El paquete (con la marca de Velbrum) lo prepara el
+    # servicio velbrum-idioma en una carpeta de root y lo instala esta política:
     # así no hace falta que Gecko cargue nada suelto del perfil.
     ExtensionSettings = {
       "*".allowed_types = [ "dictionary" "extension" "locale" "sitepermission" "theme" ];
     } // lib.optionalAttrs extensionesDeChrome {
       # La extensión de las tiendas también anda con «Siempre privado».
-      "chrome@bruma".private_browsing = true;
+      "chrome@velbrum".private_browsing = true;
     } // lib.listToAttrs (map (idioma: {
       name = "langpack-${idioma}@firefox.mozilla.org";
       value = {
@@ -112,12 +112,12 @@ let
     }) idiomas);
   };
 
-  # ── Marca: Bruma en lugar de LibreWolf ──────────────────────────────────
+  # ── Marca: Velbrum en lugar de LibreWolf ──────────────────────────────────
   # Se descomprimen los dos omni.ja de LibreWolf (el del navegador y el
   # general), se cambian logos, íconos y textos (marca/textos.py) y algunas
   # líneas de código (marca/codigo.py: «Acerca de», borrado de paquetes de
   # idioma…), y se vuelven a comprimir. Los íconos de las ventanas están fuera.
-  marca = pkgs.runCommand "bruma-marca-${librewolf.version}"
+  marca = pkgs.runCommand "velbrum-marca-${librewolf.version}"
     { nativeBuildInputs = [ pkgs.librsvg pkgs.imagemagick pkgs.unzip pkgs.zip pkgs.python3 ]; }
     ''
       # omni.ja es un zip «optimizado»: unzip avisa (código 1 o 2) pero lo
@@ -134,8 +134,8 @@ let
       desempacar ${librewolf}/lib/librewolf/omni.ja toolkit
 
       b=omni/chrome/browser/content/branding
-      logo=${./iconos/bruma.svg}
-      chico=${./iconos/bruma-chico.svg}
+      logo=${./iconos/velbrum.svg}
+      chico=${./iconos/velbrum-chico.svg}
       test -f $b/icon32.png
       for t in 16 32 48 64 128; do
         if [ $t -le 32 ]; then svg=$chico; else svg=$logo; fi
@@ -157,7 +157,7 @@ let
       cp $logo omni/chrome/devtools/skin/images/aboutdebugging-firefox-librewolf.svg
 
       python3 -I ${./marca/textos.py} ${./marca} omni toolkit
-      cp ${./marca/ajustes-bruma.sys.mjs} omni/chrome/browser/content/browser/ajustes-bruma.sys.mjs
+      cp ${./marca/ajustes-velbrum.sys.mjs} omni/chrome/browser/content/browser/ajustes-velbrum.sys.mjs
       python3 -I ${./marca/codigo.py} omni toolkit
 
       mkdir -p $out/iconos
@@ -171,9 +171,9 @@ let
 
   gecko =
     (pkgs.wrapFirefox librewolf {
-      pname = "bruma-gecko";
+      pname = "velbrum-gecko";
       libName = "librewolf";
-      wmClass = "bruma";
+      wmClass = "velbrum";
       # Como texto "${...}" para que se copie al store: con la ruta sola, el
       # wrapper la leería desde /etc/nixos y no se recompilaría al cambiarla.
       extraPrefsFiles = librewolf.extraPrefsFiles ++ [ "${./gecko/ajustes.cfg}" fuentesMullvadCfg ];
@@ -190,10 +190,10 @@ let
       (viejo: {
         buildCommand = viejo.buildCommand + lib.optionalString extensionesDeChrome ''
           mkdir -p "$out/lib/librewolf/browser/extensions"
-          cp ${xpiBruma}/chrome@bruma.xpi "$out/lib/librewolf/browser/extensions/chrome@bruma.xpi"
+          cp ${xpiVelbrum}/chrome@velbrum.xpi "$out/lib/librewolf/browser/extensions/chrome@velbrum.xpi"
         '' + ''
 
-          # Marca de Bruma (ver «marca» arriba).
+          # Marca de Velbrum (ver «marca» arriba).
           rm "$out/lib/librewolf/browser/omni.ja" "$out/lib/librewolf/omni.ja"
           cp ${marca}/omni.ja "$out/lib/librewolf/browser/omni.ja"
           cp ${marca}/omni-general.ja "$out/lib/librewolf/omni.ja"
@@ -202,7 +202,7 @@ let
           rm -f "$out/lib/librewolf/distribution/distribution.ini"
           politicas="$out/lib/librewolf/distribution/policies.json"
           jq 'del(.policies.SupportMenu)
-              | .policies.ExtensionSettings["*"].blocked_install_message = "Bruma no permite instalar este complemento."' \
+              | .policies.ExtensionSettings["*"].blocked_install_message = "Velbrum no permite instalar este complemento."' \
             "$politicas" > politicas.json
           mv politicas.json "$politicas"
           ! grep -qi librewolf "$politicas"
@@ -214,22 +214,22 @@ let
       });
 
   # ── Host de mensajería nativa ───────────────────────────────────────────
-  manifiestoHost = pkgs.writeText "bruma.extensiones.json" (builtins.toJSON {
-    name = "bruma.extensiones";
-    description = "Bruma: instalar extensiones de Chrome";
-    path = "@out@/libexec/bruma/host-extensiones";
+  manifiestoHost = pkgs.writeText "velbrum.extensiones.json" (builtins.toJSON {
+    name = "velbrum.extensiones";
+    description = "Velbrum: instalar extensiones de Chrome";
+    path = "@out@/libexec/velbrum/host-extensiones";
     type = "stdio";
-    allowed_extensions = [ "chrome@bruma" ];
+    allowed_extensions = [ "chrome@velbrum" ];
   });
 
   menu = pkgs.makeDesktopItem {
-    name = "bruma";
-    desktopName = "Bruma";
+    name = "velbrum";
+    desktopName = "Velbrum";
     genericName = "Navegador web privado";
     comment = "Navegador privado con la protección de Mullvad Browser que también usa extensiones de Chrome";
-    exec = "bruma %U";
-    icon = "bruma";
-    startupWMClass = "bruma";
+    exec = "velbrum %U";
+    icon = "velbrum";
+    startupWMClass = "velbrum";
     startupNotify = true;
     categories = [ "Network" "WebBrowser" ];
     keywords = [ "navegador" "internet" "web" "privado" "mullvad" "firefox" "chrome" "extensiones" ];
@@ -241,104 +241,104 @@ let
       "application/x-chrome-extension"
     ];
     actions = {
-      nueva-ventana = { name = "Nueva ventana"; exec = "bruma --nueva-ventana"; };
-      ventana-privada = { name = "Nueva ventana privada"; exec = "bruma --privada"; };
-      ventana-tor = { name = "Nueva ventana privada con Tor"; exec = "bruma --tor"; };
+      nueva-ventana = { name = "Nueva ventana"; exec = "velbrum --nueva-ventana"; };
+      ventana-privada = { name = "Nueva ventana privada"; exec = "velbrum --privada"; };
+      ventana-tor = { name = "Nueva ventana privada con Tor"; exec = "velbrum --tor"; };
       # Los interruptores de bordes y firmas están adentro del navegador
-      # (botón «Bruma», marca/ajustes-bruma.sys.mjs) y en la terminal.
+      # (botón «Velbrum», marca/ajustes-velbrum.sys.mjs) y en la terminal.
     };
   };
 
-  # Las ventanas con Tor son otra instancia (clase bruma-tor): esta entrada
-  # oculta hace que GNOME les ponga el ícono de Bruma y el nombre correcto.
+  # Las ventanas con Tor son otra instancia (clase velbrum-tor): esta entrada
+  # oculta hace que GNOME les ponga el ícono de Velbrum y el nombre correcto.
   menuTor = pkgs.makeDesktopItem {
-    name = "bruma-tor";
-    desktopName = "Bruma con Tor";
-    comment = "Ventana privada de Bruma que sale por Tor";
-    exec = "bruma --tor %U";
-    icon = "bruma";
-    startupWMClass = "bruma-tor";
+    name = "velbrum-tor";
+    desktopName = "Velbrum con Tor";
+    comment = "Ventana privada de Velbrum que sale por Tor";
+    exec = "velbrum --tor %U";
+    icon = "velbrum";
+    startupWMClass = "velbrum-tor";
     noDisplay = true;
     categories = [ "Network" "WebBrowser" ];
   };
 in
-pkgs.runCommand "bruma-${versionFirefox}"
+pkgs.runCommand "velbrum-${versionFirefox}"
   {
-    passthru = { inherit gecko xpiBruma; };
+    passthru = { inherit gecko xpiVelbrum; };
     meta = {
       description = "Navegador privado: LibreWolf con la privacidad de Mullvad y extensiones de Chrome";
-      mainProgram = "bruma";
+      mainProgram = "velbrum";
       platforms = [ "x86_64-linux" ];
     };
   }
   ''
-    mkdir -p $out/bin $out/libexec/bruma $out/share/applications $out/share/bruma
+    mkdir -p $out/bin $out/libexec/velbrum $out/share/applications $out/share/velbrum
     ln -s ${iconos}/share/icons $out/share/icons
     cp ${menu}/share/applications/*.desktop ${menuTor}/share/applications/*.desktop $out/share/applications/
 
-    substitute ${./host/host-extensiones.py} $out/libexec/bruma/host-extensiones \
+    substitute ${./host/host-extensiones.py} $out/libexec/velbrum/host-extensiones \
       --replace-fail @python@ ${pkgs.python3}/bin/python3 \
-      --replace-fail @bruma@ $out/bin/bruma \
-      --replace-fail @libexec@ $out/libexec/bruma
-    chmod 555 $out/libexec/bruma/host-extensiones
-    substitute ${manifiestoHost} $out/share/bruma/bruma.extensiones.json --replace-fail @out@ $out
+      --replace-fail @velbrum@ $out/bin/velbrum \
+      --replace-fail @libexec@ $out/libexec/velbrum
+    chmod 555 $out/libexec/velbrum/host-extensiones
+    substitute ${manifiestoHost} $out/share/velbrum/velbrum.extensiones.json --replace-fail @out@ $out
 
-    cp -r ${./host/compat} $out/libexec/bruma/compat
-    substitute ${./host/extensiones_chrome.py} $out/libexec/bruma/extensiones_chrome.py \
+    cp -r ${./host/compat} $out/libexec/velbrum/compat
+    substitute ${./host/extensiones_chrome.py} $out/libexec/velbrum/extensiones_chrome.py \
       --replace-fail @versionChromium@ ${versionChrome} \
-      --replace-fail @compat@ $out/libexec/bruma/compat
-    # Cambio de país de la ventana con Tor (bruma --tor-pais).
-    cp ${./host/tor-pais.py} $out/libexec/bruma/tor-pais.py
-    ${pkgs.python3}/bin/python3 -I -m py_compile $out/libexec/bruma/extensiones_chrome.py $out/libexec/bruma/host-extensiones $out/libexec/bruma/tor-pais.py
-    rm -rf $out/libexec/bruma/__pycache__
+      --replace-fail @compat@ $out/libexec/velbrum/compat
+    # Cambio de país de la ventana con Tor (velbrum --tor-pais).
+    cp ${./host/tor-pais.py} $out/libexec/velbrum/tor-pais.py
+    ${pkgs.python3}/bin/python3 -I -m py_compile $out/libexec/velbrum/extensiones_chrome.py $out/libexec/velbrum/host-extensiones $out/libexec/velbrum/tor-pais.py
+    rm -rf $out/libexec/velbrum/__pycache__
 
-    # Paquete de idioma con la marca de Bruma (lo arma el lanzador).
-    mkdir -p $out/libexec/bruma/marca
-    cp ${./marca/idioma.py} $out/libexec/bruma/marca/idioma.py
-    cp ${./marca/brand.ftl} $out/libexec/bruma/marca/brand.ftl
-    cp ${./marca/brand.properties} $out/libexec/bruma/marca/brand.properties
-    # Lo que corre el servicio de sistema bruma-idioma (modulo.nix).
-    cat > $out/libexec/bruma/bruma-idioma <<EOF
+    # Paquete de idioma con la marca de Velbrum (lo arma el lanzador).
+    mkdir -p $out/libexec/velbrum/marca
+    cp ${./marca/idioma.py} $out/libexec/velbrum/marca/idioma.py
+    cp ${./marca/brand.ftl} $out/libexec/velbrum/marca/brand.ftl
+    cp ${./marca/brand.properties} $out/libexec/velbrum/marca/brand.properties
+    # Lo que corre el servicio de sistema velbrum-idioma (modulo.nix).
+    cat > $out/libexec/velbrum/velbrum-idioma <<EOF
     #!${pkgs.bash}/bin/bash
-    exec ${pkgs.python3}/bin/python3 -I $out/libexec/bruma/marca/idioma.py ${carpetaIdioma} ${versionFirefox} $out/libexec/bruma/marca ${lib.escapeShellArgs idiomas}
+    exec ${pkgs.python3}/bin/python3 -I $out/libexec/velbrum/marca/idioma.py ${carpetaIdioma} ${versionFirefox} $out/libexec/velbrum/marca ${lib.escapeShellArgs idiomas}
     EOF
-    chmod 555 $out/libexec/bruma/bruma-idioma
+    chmod 555 $out/libexec/velbrum/velbrum-idioma
 
-    substitute ${./lanzador.sh} $out/bin/bruma \
+    substitute ${./lanzador.sh} $out/bin/velbrum \
       --replace-fail @bash@ ${pkgs.bash}/bin/bash \
       --replace-fail @python@ ${pkgs.python3}/bin/python3 \
-      --replace-fail @libexec@ $out/libexec/bruma \
+      --replace-fail @libexec@ $out/libexec/velbrum \
       --replace-fail @gecko@ ${gecko}/bin/librewolf \
-      --replace-fail @fuentes@ ${fuentes}/share/bruma/fuentes/fonts.conf \
-      --replace-fail @manifiestoHost@ $out/share/bruma/bruma.extensiones.json \
+      --replace-fail @fuentes@ ${fuentes}/share/velbrum/fuentes/fonts.conf \
+      --replace-fail @manifiestoHost@ $out/share/velbrum/velbrum.extensiones.json \
       --replace-fail @extensionesDeChrome@ ${if extensionesDeChrome then "1" else "0"} \
       --replace-fail @notifySend@ ${pkgs.libnotify}/bin/notify-send \
       --replace-fail @tor@ ${pkgs.tor}/bin/tor \
       --replace-fail @torGeoip@ ${pkgs.tor.geoip} \
-      --replace-fail @lanzador@ $out/bin/bruma \
-      --replace-fail @versionBruma@ ${versionBruma} \
+      --replace-fail @lanzador@ $out/bin/velbrum \
+      --replace-fail @versionVelbrum@ ${versionVelbrum} \
       --replace-fail @repoActualizaciones@ ${lib.escapeShellArg (lib.escapeShellArg repoActualizaciones)} \
-      --replace-fail @actualizador@ $out/bin/bruma-actualizar
-    chmod 555 $out/bin/bruma
-    ${pkgs.bash}/bin/bash -n $out/bin/bruma
+      --replace-fail @actualizador@ $out/bin/velbrum-actualizar
+    chmod 555 $out/bin/velbrum
+    ${pkgs.bash}/bin/bash -n $out/bin/velbrum
 
     # Actualizador: versión instalada, claves que pueden firmar versiones, el
     # ayudante que instala (como root, con pkexec) y su acción de polkit. Los
     # valores van con doble escape: uno lo consume este shell y el otro queda
     # en el script (comillas para bash).
-    echo ${versionBruma} > $out/share/bruma/version
-    cp ${./firmas/claves-permitidas} $out/share/bruma/claves-permitidas
-    substitute ${./host/actualizar.sh} $out/bin/bruma-actualizar \
+    echo ${versionVelbrum} > $out/share/velbrum/version
+    cp ${./firmas/claves-permitidas} $out/share/velbrum/claves-permitidas
+    substitute ${./host/actualizar.sh} $out/bin/velbrum-actualizar \
       --replace-fail @bash@ ${pkgs.bash}/bin/bash \
-      --replace-fail @carpeta@ ${lib.escapeShellArg (lib.escapeShellArg carpetaBruma)} \
+      --replace-fail @carpeta@ ${lib.escapeShellArg (lib.escapeShellArg carpetaVelbrum)} \
       --replace-fail @repositorio@ ${lib.escapeShellArg (lib.escapeShellArg repoActualizaciones)} \
-      --replace-fail @version@ ${versionBruma} \
-      --replace-fail @clavesPermitidas@ $out/share/bruma/claves-permitidas \
+      --replace-fail @version@ ${versionVelbrum} \
+      --replace-fail @clavesPermitidas@ $out/share/velbrum/claves-permitidas \
       --replace-fail @sshKeygen@ ${pkgs.openssh}/bin/ssh-keygen \
       --replace-fail @comando@ ${lib.escapeShellArg (lib.escapeShellArg comandoActualizar)}
-    chmod 555 $out/bin/bruma-actualizar
-    ${pkgs.bash}/bin/bash -n $out/bin/bruma-actualizar
+    chmod 555 $out/bin/velbrum-actualizar
+    ${pkgs.bash}/bin/bash -n $out/bin/velbrum-actualizar
     mkdir -p $out/share/polkit-1/actions
-    substitute ${./host/actualizar.policy} $out/share/polkit-1/actions/org.bruma.actualizar.policy \
-      --replace-fail @actualizador@ $out/bin/bruma-actualizar
+    substitute ${./host/actualizar.policy} $out/share/polkit-1/actions/org.velbrum.actualizar.policy \
+      --replace-fail @actualizador@ $out/bin/velbrum-actualizar
   ''

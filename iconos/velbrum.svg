@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <!-- Bruma: el contorno del globo (la web) se desarma en jirones de niebla -->
+  <!-- Velbrum: el contorno del globo (la web) se desarma en jirones de niebla -->
   <defs>
     <radialGradient id="cielo" cx="0.4" cy="0.3" r="0.8">
       <stop offset="0" stop-color="#8f80ff"/>

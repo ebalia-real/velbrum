@@ -1,8 +1,8 @@
-"""Extensiones de Chrome en Bruma, que usa el motor Gecko (ver README.md).
+"""Extensiones de Chrome en Velbrum, que usa el motor Gecko (ver README.md).
 
 Descarga una extensión de la tienda de Chrome o de la de Edge (las dos usan el
 formato de Chromium), la convierte en un complemento de Gecko (XPI sin firma)
-y la guarda en ~/.local/share/bruma/extensiones-chrome/. También actualiza las
+y la guarda en ~/.local/share/velbrum/extensiones-chrome/. También actualiza las
 ya instaladas, cada una desde la tienda de la que vino: deja la versión nueva
 en el perfil de Gecko y el navegador la toma en el próximo arranque.
 
@@ -33,7 +33,16 @@ import zipfile
 
 VERSION_CHROMIUM = "@versionChromium@"
 COMPAT = "@compat@"  # carpeta con compat/fondo.js
-SUFIJO_ID = "@chrome.bruma"
+SUFIJO_ID = "@chrome.velbrum"
+# Versión de la capa de compatibilidad (compat/): cuando cambia, `actualizar`
+# vuelve a convertir las extensiones instaladas aunque no tengan versión nueva.
+VERSION_COMPAT = 2
+ARCHIVOS_COMPAT = ("fondo.js", "pagina.js", "contenido.js", "permisos.html", "permisos.js")
+# Antes de llamarse Velbrum el navegador se llamaba Bruma: las extensiones que
+# ya estaban instaladas conservan su ID y su carpeta interna (ver sufijo_para).
+SUFIJOS_ANTERIORES = ("@chrome.bruma",)
+SUFIJOS = (SUFIJO_ID,) + SUFIJOS_ANTERIORES
+ORIGENES = ("velbrum-compat/origen.json", "bruma-compat/origen.json")
 URL_TIENDA = "https://clients2.google.com/service/update2/crx"
 URL_EDGE = "https://edge.microsoft.com/extensionwebstorebase/v1/crx"
 # La tienda de Edge indica sus CRX con direcciones http:// de su CDN, cuyo
@@ -43,7 +52,7 @@ TIENDAS = {"chrome": "la tienda de Chrome", "edge": "la tienda de Edge"}
 # Gecko consulta las actualizaciones en la URL del complemento; esta no
 # responde, así que no le cuenta a nadie qué extensiones usás (las
 # actualizaciones las hace `actualizar`).
-URL_SIN_ACTUALIZACIONES = "https://localhost/bruma/sin-actualizaciones.json"
+URL_SIN_ACTUALIZACIONES = "https://localhost/velbrum/sin-actualizaciones.json"
 RE_ID = re.compile(r"(?<![a-z])([a-p]{32})(?![a-z])")
 # Servidores a los que se pregunta por versiones (siempre por https).
 SERVIDORES_CONSULTA = {"clients2.google.com", "edge.microsoft.com"}
@@ -67,7 +76,7 @@ SIN_EQUIVALENTE = {
 }
 EMULADOS = {"offscreen", "sidePanel"}
 # Permisos que Chrome concede al instalar y Gecko solo acepta como opcionales:
-# Bruma los pide con un botón (compat/permisos.html).
+# Velbrum los pide con un botón (compat/permisos.html).
 SOLO_OPCIONALES = {"userScripts"}
 # Claves del manifiesto de Chrome que Gecko no entiende o rechaza.
 CLAVES_DE_CHROME = {
@@ -96,11 +105,11 @@ class ErrorExtension(Exception):
 # ── Rutas ──────────────────────────────────────────────────────────────────
 def carpeta_datos():
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
-    return os.path.join(base, "bruma")
+    return os.path.join(base, "velbrum")
 
 
 def firmas_obligatorias():
-    """El interruptor de firmas (bruma --exigir-firmas / --permitir-sin-firma)."""
+    """El interruptor de firmas (velbrum --exigir-firmas / --permitir-sin-firma)."""
     return os.path.exists(os.path.join(carpeta_datos(), "firmas-obligatorias"))
 
 
@@ -109,6 +118,17 @@ def carpeta_xpi():
     os.makedirs(ruta, mode=0o700, exist_ok=True)
     os.chmod(ruta, 0o700)
     return ruta
+
+
+def sufijo_para(id_chrome):
+    """El sufijo del ID en Gecko: el de antes del cambio de nombre si esa
+    extensión ya estaba instalada así (para que se actualice en lugar de
+    instalarse dos veces), si no el actual."""
+    carpeta = carpeta_extensiones_perfil()
+    for sufijo in SUFIJOS_ANTERIORES:
+        if os.path.exists(os.path.join(carpeta, id_chrome + sufijo + ".xpi")):
+            return sufijo
+    return SUFIJO_ID
 
 
 def carpeta_extensiones_perfil():
@@ -354,7 +374,7 @@ def verificar_crx(datos):
     try:
         version, largo = struct.unpack("<II", datos[4:12])
         if version != 3:
-            raise ErrorExtension(f"formato CRX{version}: no tiene una firma que Bruma pueda verificar")
+            raise ErrorExtension(f"formato CRX{version}: no tiene una firma que Velbrum pueda verificar")
         cabecera, archivo_zip = datos[12 : 12 + largo], datos[12 + largo :]
         if len(cabecera) != largo:
             raise ErrorExtension("el CRX está cortado")
@@ -478,6 +498,16 @@ def fragmentos_webpack(archivos, sw, ya_incluidos, manifiesto_actual):
     return globales, fragmentos
 
 
+def con_script_primero(html, src):
+    """El HTML con <script src=…> al principio del <head> (o del todo)."""
+    texto = html.decode("utf-8", "replace")
+    etiqueta = f'<script src="{src}"></script>'
+    if etiqueta in texto:
+        return html
+    texto, n = re.subn(r"(<head(?:\s[^>]*)?>)", lambda r: r.group(1) + etiqueta, texto, count=1, flags=re.I)
+    return (texto if n else etiqueta + texto).encode("utf-8")
+
+
 def adaptar_manifiesto(m, id_chrome, archivos):
     avisos = []
     nombre = m.get("name", id_chrome)
@@ -500,7 +530,7 @@ def adaptar_manifiesto(m, id_chrome, archivos):
             m[campo] = [p for p in m[campo] if p not in quitados]
             for permiso in quitados:
                 if permiso in EMULADOS:
-                    avisos.append(f"usa chrome.{permiso}: Bruma lo emula")
+                    avisos.append(f"usa chrome.{permiso}: Velbrum lo emula")
                 elif not permiso.startswith("chrome://"):
                     avisos.append(f"pide el permiso «{permiso}», que Gecko no tiene")
     permisos_a_pedir = sorted(SOLO_OPCIONALES & set(m.get("permissions") or []))
@@ -508,11 +538,12 @@ def adaptar_manifiesto(m, id_chrome, archivos):
         m["permissions"] = [p for p in m["permissions"] if p not in permisos_a_pedir]
         m["optional_permissions"] = sorted(set(m.get("optional_permissions") or []) | set(permisos_a_pedir))
         for permiso in permisos_a_pedir:
-            avisos.append(f"necesita el permiso «{permiso}»: Bruma te lo pide con un botón al instalarla")
+            avisos.append(f"necesita el permiso «{permiso}»: Velbrum te lo pide con un botón al instalarla")
 
     # Fondo: service worker → página de fondo con la capa de compatibilidad.
     fondo = m.get("background") or {}
-    compat = ["bruma-compat/fondo.js", "bruma-compat/config.js"]
+    pagina_de_fondo = None
+    compat = ["velbrum-compat/fondo.js", "velbrum-compat/config.js"]
     config = {"fragmentos": [], "permisos": permisos_a_pedir}
     if "service_worker" in fondo:
         sw = os.path.normpath(fondo["service_worker"].lstrip("/"))
@@ -535,11 +566,16 @@ def adaptar_manifiesto(m, id_chrome, archivos):
         fondo["scripts"] = compat + fondo["scripts"]
     elif "page" in fondo:
         pagina = os.path.normpath(fondo["page"].lstrip("/"))
+        pagina_de_fondo = pagina
         if pagina in archivos:
-            html = archivos[pagina].decode("utf-8", "replace")
-            etiqueta = "".join(f'<script src="/{js}"></script>' for js in compat)
-            html, n = re.subn(r"(<head[^>]*>)", r"\1" + etiqueta, html, count=1, flags=re.I)
-            archivos[pagina] = (html if n else etiqueta + html).encode("utf-8")
+            for js in reversed(compat):
+                archivos[pagina] = con_script_primero(archivos[pagina], f"/{js}")
+
+    # Las demás páginas de la extensión (ventana emergente, opciones, documento
+    # oculto…) llevan compat/pagina.js primero: navigator.serviceWorker.
+    for ruta in archivos:
+        if ruta.lower().endswith((".html", ".htm")) and ruta != pagina_de_fondo:
+            archivos[ruta] = con_script_primero(archivos[ruta], "/velbrum-compat/pagina.js")
 
     # Panel lateral de Chrome → barra lateral de Gecko.
     panel = (m.pop("side_panel", None) or {}).get("default_path")
@@ -566,18 +602,28 @@ def adaptar_manifiesto(m, id_chrome, archivos):
 
     for c in m.get("content_scripts") or []:
         c.pop("match_origin_as_fallback", None)
+        # Capa de compatibilidad primero (compat/contenido.js), salvo en los
+        # scripts del «mundo» de la página, que no tienen la API de la extensión.
+        if c.get("js") and c.get("world") != "MAIN":
+            c["js"] = ["velbrum-compat/contenido.js"] + [j for j in c["js"] if j != "velbrum-compat/contenido.js"]
+
+    # Chrome deja bloquear webRequest.onAuthRequired (contraseñas de proxy o de
+    # sitios) con webRequestAuthProvider; Gecko pide además webRequestBlocking.
+    permisos = m.get("permissions") or []
+    if "webRequestAuthProvider" in permisos and "webRequestBlocking" not in permisos:
+        permisos.append("webRequestBlocking")
 
     avisos += adaptar_buscador(m, archivos)
 
     if m.get("background"):
-        archivos["bruma-compat/config.js"] = f"__brumaConfigurar({json.dumps(config)});\n".encode()
+        archivos["velbrum-compat/config.js"] = f"__velbrumConfigurar({json.dumps(config)});\n".encode()
     elif permisos_a_pedir:
         m["background"] = {"scripts": compat}
-        archivos["bruma-compat/config.js"] = f"__brumaConfigurar({json.dumps(config)});\n".encode()
+        archivos["velbrum-compat/config.js"] = f"__velbrumConfigurar({json.dumps(config)});\n".encode()
 
     m["browser_specific_settings"] = {
         "gecko": {
-            "id": id_chrome + SUFIJO_ID,
+            "id": id_chrome + sufijo_para(id_chrome),
             "strict_min_version": "128.0",
             "update_url": URL_SIN_ACTUALIZACIONES,
         }
@@ -673,8 +719,8 @@ def convertir(datos_crx, id_chrome, tienda="chrome"):
         raise ErrorExtension("el CRX descargado está dañado") from error
     if "manifest.json" not in archivos:
         raise ErrorExtension("la extensión no tiene manifest.json")
-    if any(n.startswith("bruma-compat/") for n in archivos):
-        raise ErrorExtension("la extensión ya tiene una carpeta bruma-compat")
+    if any(n.startswith("velbrum-compat/") for n in archivos):
+        raise ErrorExtension("la extensión ya tiene una carpeta velbrum-compat")
 
     manifiesto = json_tolerante(archivos.pop("manifest.json").decode("utf-8", "replace"))
     if manifiesto.get("manifest_version") not in (2, 3):
@@ -690,10 +736,10 @@ def convertir(datos_crx, id_chrome, tienda="chrome"):
         if ruta.endswith((".js", ".mjs", ".html", ".htm", ".css", ".json")) and b"chrome-extension:" in contenido:
             archivos[ruta] = contenido.replace(b"chrome-extension:", b"moz-extension:")
 
-    for archivo in ("fondo.js", "permisos.html", "permisos.js"):
+    for archivo in ARCHIVOS_COMPAT:
         with open(os.path.join(COMPAT, archivo), "rb") as f:
-            archivos[f"bruma-compat/{archivo}"] = f.read()
-    archivos["bruma-compat/origen.json"] = json.dumps(
+            archivos[f"velbrum-compat/{archivo}"] = f.read()
+    archivos["velbrum-compat/origen.json"] = json.dumps(
         {
             "id_chrome": id_chrome,
             # De qué tienda vino: `actualizar` busca ahí las versiones nuevas.
@@ -701,6 +747,7 @@ def convertir(datos_crx, id_chrome, tienda="chrome"):
             "nombre": nombre,
             "version": manifiesto.get("version"),
             "convertida": time.strftime("%Y-%m-%d %H:%M"),
+            "compat": VERSION_COMPAT,
             "avisos": avisos,
         },
         ensure_ascii=False,
@@ -749,8 +796,8 @@ def preparar(origen, tienda=None):
     ID solo, se prueba primero la de Chrome y después la de Edge."""
     if firmas_obligatorias():
         raise ErrorExtension(
-            "Bruma está aceptando solo extensiones firmadas por Mozilla. "
-            "Para instalar extensiones de Chrome: bruma --permitir-sin-firma"
+            "Velbrum está aceptando solo extensiones firmadas por Mozilla. "
+            "Para instalar extensiones de Chrome: velbrum --permitir-sin-firma"
         )
     archivo = ruta_local(origen)
     if archivo:
@@ -774,7 +821,7 @@ def preparar(origen, tienda=None):
         version, url, sha256 = ultima
         datos = descargar(url, sha256, tienda)
     xpi, manifiesto, avisos, nombre = convertir(datos, id_chrome, tienda)
-    ruta = os.path.join(carpeta_xpi(), id_chrome + SUFIJO_ID + ".xpi")
+    ruta = os.path.join(carpeta_xpi(), id_chrome + sufijo_para(id_chrome) + ".xpi")
     escribir_atomico(ruta, xpi)
     return ruta, {
         "id_chrome": id_chrome,
@@ -792,14 +839,15 @@ def instaladas():
         return []
     resultado = []
     for archivo in sorted(os.listdir(carpeta)):
-        if not archivo.endswith(SUFIJO_ID + ".xpi"):
+        if not archivo.endswith(tuple(s + ".xpi" for s in SUFIJOS)):
             continue
         ruta = os.path.join(carpeta, archivo)
         try:
             with zipfile.ZipFile(ruta) as xpi:
-                origen = json.loads(xpi.read("bruma-compat/origen.json"))
+                nombres = set(xpi.namelist())
+                origen = json.loads(xpi.read(next(o for o in ORIGENES if o in nombres)))
                 manifiesto = json.loads(xpi.read("manifest.json"))
-        except (OSError, KeyError, ValueError, zipfile.BadZipFile):
+        except (OSError, KeyError, ValueError, StopIteration, zipfile.BadZipFile):
             continue
         resultado.append((ruta, origen, manifiesto))
     return resultado
@@ -831,6 +879,8 @@ def permisos_pedidos(m):
         pedidos.update(p for p in m.get(campo) or [] if isinstance(p, str))
     for script in m.get("content_scripts") or []:
         pedidos.update(s for s in script.get("matches") or [] if isinstance(s, str))
+    if "webRequestAuthProvider" in pedidos:
+        pedidos.discard("webRequestBlocking")  # lo agrega Velbrum (adaptar_manifiesto)
     return pedidos
 
 
@@ -844,12 +894,15 @@ def actualizar():
     aprobadas = instaladas_por_el_usuario()
     for ruta, origen, manifiesto in instaladas():
         id_chrome = origen["id_chrome"]
-        if not RE_ID.fullmatch(id_chrome) or id_chrome + SUFIJO_ID not in aprobadas:
+        if not RE_ID.fullmatch(id_chrome) or not any(id_chrome + s in aprobadas for s in SUFIJOS):
             continue
-        # Las convertidas antes de que Bruma usara la tienda de Edge no lo dicen.
+        # Las convertidas antes de que Velbrum usara la tienda de Edge no lo dicen.
         tienda = origen.get("tienda") if origen.get("tienda") in TIENDAS else "chrome"
+        # Capa de compatibilidad vieja: se vuelve a convertir la misma versión
+        # (o una nueva, si la hay).
+        compat_vieja = origen.get("compat", 1) < VERSION_COMPAT
         try:
-            nueva = consultar(id_chrome, manifiesto.get("version", "0"), tienda)
+            nueva = consultar(id_chrome, "0" if compat_vieja else manifiesto.get("version", "0"), tienda)
             if not nueva:
                 continue
             _, url, sha256 = nueva
@@ -857,7 +910,8 @@ def actualizar():
         except ErrorExtension as error:
             print(f"{id_chrome}: {error}", file=sys.stderr)
             continue
-        if version_tupla(manifiesto_nuevo.get("version")) <= version_tupla(manifiesto.get("version")):
+        anterior, posterior = version_tupla(manifiesto.get("version")), version_tupla(manifiesto_nuevo.get("version"))
+        if posterior < anterior or (posterior == anterior and not compat_vieja):
             continue  # nunca volver a una versión anterior
         nuevos = permisos_pedidos(manifiesto_nuevo) - permisos_pedidos(manifiesto)
         if nuevos:
@@ -865,13 +919,16 @@ def actualizar():
             continue
         escribir_atomico(ruta, xpi)
         escribir_atomico(os.path.join(carpeta_xpi(), os.path.basename(ruta)), xpi)
-        cambios.append(f"{nombre}: {manifiesto.get('version')} → {manifiesto_nuevo.get('version')}")
+        if posterior == anterior:
+            cambios.append(f"{nombre}: {manifiesto.get('version')}, con la compatibilidad nueva de Velbrum")
+        else:
+            cambios.append(f"{nombre}: {manifiesto.get('version')} → {manifiesto_nuevo.get('version')}")
     return cambios, pendientes
 
 
 def avisar_escritorio(titulo, texto):
     if shutil.which("notify-send"):
-        subprocess.run(["notify-send", "--app-name=Bruma", "--icon=bruma", titulo, texto], check=False)
+        subprocess.run(["notify-send", "--app-name=Velbrum", "--icon=velbrum", titulo, texto], check=False)
 
 
 def main(argv):
@@ -879,9 +936,9 @@ def main(argv):
         try:
             ruta, info = preparar(argv[1])
         except ErrorExtension as error:
-            print(f"bruma: {error}", file=sys.stderr)
+            print(f"velbrum: {error}", file=sys.stderr)
             return 1
-        print(f"{info['nombre']} {info['version']} ({TIENDAS[info['tienda']]}) convertida para Bruma.", file=sys.stderr)
+        print(f"{info['nombre']} {info['version']} ({TIENDAS[info['tienda']]}) convertida para Velbrum.", file=sys.stderr)
         for aviso in info["avisos"]:
             print(f"  ⚠ {aviso}", file=sys.stderr)
         print(pathlib.Path(ruta).as_uri())
@@ -891,10 +948,10 @@ def main(argv):
         for cambio in cambios:
             print(f"Actualizada: {cambio}")
         if cambios:
-            print("Las versiones nuevas se activan la próxima vez que abras Bruma.")
+            print("Las versiones nuevas se activan la próxima vez que abras Velbrum.")
         for nombre, id_chrome, nuevos in pendientes:
             texto = (f"La versión nueva pide permisos nuevos ({', '.join(nuevos)}). "
-                     f"Para actualizarla y ver el cartel: bruma --extension-chrome {id_chrome}")
+                     f"Para actualizarla y ver el cartel: velbrum --extension-chrome {id_chrome}")
             print(f"{nombre}: {texto}")
             avisar_escritorio(f"{nombre} necesita tu permiso para actualizarse", texto)
         return 0

@@ -1,4 +1,4 @@
-// Bruma: pide los permisos que Chrome concede al instalar y Gecko solo como
+// Velbrum: pide los permisos que Chrome concede al instalar y Gecko solo como
 // opcionales (por ejemplo userScripts). Ver fondo.js.
 const permisos = new URLSearchParams(location.search).get("permisos")?.split(",").filter(Boolean) ?? [];
 document.getElementById("nombre").textContent = browser.runtime.getManifest().name;
