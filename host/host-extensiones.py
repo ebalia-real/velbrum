@@ -87,12 +87,17 @@ def abrir_instalacion(ruta_xpi):
     # En Windows, el navegador corre el host dentro de un «job» que termina
     # todo lo que el host abrió cuando el host termina: el lanzador tiene que
     # salir de ese job para llegar a pasarle el XPI a la ventana abierta.
+    # Si el job no deja salir, el host espera a que el lanzador termine (con
+    # Velbrum abierto solo le pasa el archivo a la ventana: es un instante).
     sueltos = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     try:
-        subprocess.Popen(comando, creationflags=sueltos | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opciones)
+        proceso = subprocess.Popen(comando, creationflags=sueltos | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opciones)
     except OSError:
-        # El job no permite salir: se lo abre igual (puede no llegar).
-        subprocess.Popen(comando, creationflags=sueltos, **opciones)
+        proceso = subprocess.Popen(comando, creationflags=sueltos, **opciones)
+    try:
+        proceso.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        pass
 
 
 def atender(mensaje):

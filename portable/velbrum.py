@@ -609,11 +609,42 @@ def main(argv):
         args.append("--new-window")
     comando = [str(NAVEGADOR), *args, *extra, *urls]
     if WINDOWS:
-        subprocess.Popen(comando, env=entorno(), close_fds=True)
+        if urls and perfil_abierto(PERFIL):
+            # Velbrum ya está abierto: solo se le pasan las direcciones (así
+            # le llega al navegador el .xpi que convirtió el host). Se espera:
+            # si quien abrió el lanzador termina antes, Windows lo cierra.
+            try:
+                subprocess.run(comando, env=entorno(), close_fds=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                pass
+        else:
+            subprocess.Popen(comando, env=entorno(), close_fds=True)
         return 0
     os.execve(str(NAVEGADOR), comando, entorno())
     return 0
 
 
+def registrar_error():
+    """En Windows el lanzador no tiene consola: los errores quedan en
+    datos/velbrum.log (los últimos 200 KB)."""
+    import traceback
+
+    try:
+        registro = DATOS / "velbrum.log"
+        if registro.exists() and registro.stat().st_size > 200_000:
+            registro.unlink()
+        with open(registro, "a", encoding="utf-8") as f:
+            f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} velbrum {' '.join(sys.argv[1:])}\n")
+            f.write(traceback.format_exc())
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except SystemExit:
+        raise
+    except BaseException:
+        registrar_error()
+        raise

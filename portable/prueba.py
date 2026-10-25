@@ -173,6 +173,8 @@ def main():
                     fallas.append("la conversión no llegó al cartel de instalación")
                     # Para saber en qué paso quedó: lo que convirtió el host y
                     # cómo se ve el aviso.
+                    registro = args.datos / "velbrum.log"
+                    res["registro"] = registro.read_text(errors="replace")[-2000:] if registro.exists() else ""
                     convertidas = args.datos / "extensiones-chrome"
                     res["convertidas"] = sorted(p.name for p in convertidas.glob("*")) if convertidas.is_dir() else []
                     try:
