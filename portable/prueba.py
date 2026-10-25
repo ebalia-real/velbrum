@@ -140,10 +140,19 @@ def main():
         if not botones:
             fallas.append("no apareció «Agregar a Velbrum» en la tienda de Chrome")
         else:
-            b = botones[0]
-            m.clic(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2)
-            time.sleep(3)
-            aviso = m.js("const a = document.getElementById('velbrum-aviso'); return a && a.getBoundingClientRect().toJSON()")
+            # En las máquinas lentas (macOS Intel, dibujo por software) el aviso
+            # tarda; si no aparece, se vuelve a tocar el botón una vez.
+            aviso = None
+            for intento in range(2):
+                b = m.js("return [...document.querySelectorAll('button')].filter(b => b.dataset.velbrum).map(b => b.getBoundingClientRect().toJSON())")[0]
+                m.clic(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2)
+                for _ in range(20):
+                    time.sleep(1)
+                    aviso = m.js("const a = document.getElementById('velbrum-aviso'); return a && a.getBoundingClientRect().toJSON()")
+                    if aviso and aviso["height"] > 150:  # ya con los dos botones
+                        break
+                if aviso:
+                    break
             res["aviso_firefox"] = bool(aviso)
             if not aviso:
                 fallas.append("no apareció el aviso de la versión para Firefox")

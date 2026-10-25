@@ -104,6 +104,11 @@ jobs:
         run: |
           cp -r armado/Velbrum prueba && touch prueba/portable
           python portable/prueba.py --datos prueba/datos --host prueba/host/velbrum-host.exe -- prueba/velbrum.exe --headless
+      - name: Probar la conversión de una extensión de Chrome (informativo)
+        continue-on-error: true
+        run: |
+          rm -rf prueba && cp -r armado/Velbrum prueba && touch prueba/portable
+          python portable/prueba.py --conversion --datos prueba/datos --host prueba/host/velbrum-host.exe -- prueba/velbrum.exe --headless
       - name: Paquetes (instalador y portable)
         run: |
           version=$(cat VERSION)
@@ -156,6 +161,13 @@ jobs:
         run: |
           mkdir prueba && cp -R armado/Velbrum.app prueba/ && touch prueba/portable
           python portable/prueba.py --datos prueba/datos \
+            --host prueba/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
+            -- prueba/Velbrum.app/Contents/MacOS/velbrum --headless
+      - name: Probar la conversión de una extensión de Chrome (informativo)
+        continue-on-error: true
+        run: |
+          rm -rf prueba && mkdir prueba && cp -R armado/Velbrum.app prueba/ && touch prueba/portable
+          python portable/prueba.py --conversion --datos prueba/datos \
             --host prueba/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
             -- prueba/Velbrum.app/Contents/MacOS/velbrum --headless
       - uses: actions/upload-artifact@v4
