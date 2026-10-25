@@ -299,7 +299,10 @@ extensiones de Chrome se desactivan, no se borran) o usa
   carpetas que solo tu usuario puede leer (700).
 - **Lo que no cubre**: como en cualquier navegador, un programa que ya corre con
   tu usuario puede modificar tu perfil; con las firmas exigidas, Firefox pide la
-  firma de Mozilla también en ese caso.
+  firma de Mozilla también en ese caso. Gecko no les dice a las extensiones el
+  origen de quien les escribe, así que Velbrum lo saca de la dirección del
+  marco: un marco aislado (sandbox) de un sitio cuenta como ese sitio (en Chrome
+  sería `null`). Las billeteras igual piden confirmar cada pedido.
 
 Para repetir las pruebas de seguridad del conversor (necesita internet), desde
 la carpeta de Velbrum:
@@ -352,10 +355,14 @@ cómodo.
 - **Seguridad**: solo se instalan etiquetas `vAAAA.MM.DD` firmadas con una clave
   de `firmas/claves-permitidas`, y la etiqueta tiene que coincidir con su
   archivo `VERSION`. Git corre con el dueño de la carpeta, nunca como root, y sin
-  ganchos, así nada de lo que haya en el repositorio corre con permisos de
-  administrador; como root solo corre la actualización del sistema. Si la
-  carpeta tiene cambios locales, no se toca nada. Registro:
-  `/var/log/velbrum-actualizar.log`.
+  ganchos: la configuración y los ganchos de git del repositorio nunca corren
+  como administrador. La actualización del sistema sí (aplica el código Nix de
+  Velbrum, que es lo que garantiza la firma). Si la carpeta tiene cambios
+  locales, no se toca nada. Registro: `/var/log/velbrum-actualizar.log`.
+- **Que la carpeta sea de root.** Si es de tu usuario, cualquier programa que
+  corra con tu usuario puede cambiarla entre la verificación de la firma y la
+  actualización del sistema (o antes de cualquier `nixos-rebuild` tuyo), y ese
+  código correría como root.
 
 <details>
 <summary><b>Publicar una versión (para quien mantiene Velbrum)</b></summary>
@@ -370,6 +377,11 @@ cómodo.
    ```
 
 3. Sube el commit y la etiqueta: `git push origin main v2026.10.22`.
+
+Quien tenga la clave de versiones puede publicar una actualización que todos
+los Velbrum instalan como root: protégela con una frase (`ssh-keygen -p -f
+~/.ssh/velbrum-firma`) o usa una llave física (`ssh-keygen -t ed25519-sk`), y si
+puedes, no la guardes en la misma computadora que tus credenciales de GitHub.
 
 </details>
 

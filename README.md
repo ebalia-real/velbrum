@@ -288,7 +288,10 @@ not deleted) or set `velbrum.extensionesDeChrome = false` to lock it system-wide
   your user can read (700).
 - **Not covered**: like in any browser, a program already running as your user
   can modify your profile; with signatures required, Firefox demands Mozilla's
-  signature in that case too.
+  signature in that case too. Gecko doesn't tell extensions the sender's
+  origin, so Velbrum derives it from the frame's address: a sandboxed frame of
+  a site counts as that site (Chrome would say `null`). Wallets still ask you
+  to confirm every request.
 
 Run the converter's security tests (needs internet) from Velbrum's folder:
 
@@ -337,9 +340,13 @@ such as XFCE or LXQt); with 1 GB no modern browser is comfortable.
 - **Security**: only `vYYYY.MM.DD` tags signed with a key listed in
   `firmas/claves-permitidas` are installed, and the tag must match its
   `VERSION` file. Git runs as the folder's owner, never as root, with hooks
-  disabled, so nothing inside the repository runs with administrator rights;
-  only the rebuild runs as root. If the folder has local changes, nothing is
+  disabled, so the repository's git settings and hooks never run as
+  administrator; the rebuild does (it applies Velbrum's Nix code, which is
+  what the signature vouches for). If the folder has local changes, nothing is
   touched. Log: `/var/log/velbrum-actualizar.log`.
+- **Keep the folder owned by root.** If it belongs to your user, any program
+  running as you can change it between the signature check and the rebuild (or
+  before any `nixos-rebuild` of yours), and that code would run as root.
 
 <details>
 <summary><b>Publishing a version (maintainers)</b></summary>
@@ -353,6 +360,11 @@ such as XFCE or LXQt); with 1 GB no modern browser is comfortable.
    ```
 
 3. Push the commit and the tag: `git push origin main v2026.10.22`.
+
+Whoever holds the release key can publish an update that every Velbrum
+installs as root: protect it with a passphrase (`ssh-keygen -p -f
+~/.ssh/velbrum-firma`) or use a hardware key (`ssh-keygen -t ed25519-sk`), and
+keep it off the machine that holds your GitHub credentials if you can.
 
 </details>
 
