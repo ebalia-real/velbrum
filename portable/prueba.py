@@ -177,6 +177,14 @@ def main():
                     res["registro"] = registro.read_text(errors="replace")[-2000:] if registro.exists() else ""
                     convertidas = args.datos / "extensiones-chrome"
                     res["convertidas"] = sorted(p.name for p in convertidas.glob("*")) if convertidas.is_dir() else []
+                    m.contexto("chrome")
+                    res["estado_navegador"] = m.js_async("""const {AddonManager} = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+                        const ventanas = [...Services.wm.getEnumerator("navigator:browser")];
+                        return {ventanas: ventanas.length,
+                          pestanas: ventanas.flatMap(v => v.gBrowser.tabs.map(t => t.linkedBrowser.currentURI.spec)),
+                          avisos: ventanas.flatMap(v => (v.PopupNotifications?._currentNotifications || []).map(n => n.id + ":" + (n.dismissed ? "oculto" : "visible"))),
+                          instalaciones: (await AddonManager.getAllInstalls()).map(i => [i.name, i.state, i.error, i.sourceURI?.spec?.slice(-60)])}""")
+                    m.contexto("content")
                     # ¿El lanzador le puede pasar el .xpi a la ventana abierta?
                     xpis = sorted(convertidas.glob("*.xpi")) if convertidas.is_dir() else []
                     if xpis:
