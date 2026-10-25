@@ -108,7 +108,13 @@ jobs:
         continue-on-error: true
         run: |
           cp -r armado/Velbrum conversion && touch conversion/portable
-          python portable/prueba.py --conversion --datos conversion/datos --host conversion/host/velbrum-host.exe -- conversion/velbrum.exe --headless
+          python portable/prueba.py --conversion --datos conversion/datos --host conversion/host/velbrum-host.exe -- conversion/velbrum.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostico-windows
+          path: prueba-captura.png
+          if-no-files-found: ignore
       - name: Paquetes (instalador y portable)
         run: |
           version=$(cat VERSION)

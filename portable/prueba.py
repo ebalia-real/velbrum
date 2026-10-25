@@ -170,6 +170,16 @@ def main():
                 res["cartel_instalacion"] = cartel
                 if not cartel:
                     fallas.append("la conversión no llegó al cartel de instalación")
+                    # Para saber en qué paso quedó: lo que convirtió el host y
+                    # cómo se ve el aviso.
+                    convertidas = args.datos / "extensiones-chrome"
+                    res["convertidas"] = sorted(p.name for p in convertidas.glob("*")) if convertidas.is_dir() else []
+                    try:
+                        import base64
+                        captura = m.cmd("WebDriver:TakeScreenshot", {"full": False})["value"]
+                        pathlib.Path("prueba-captura.png").write_bytes(base64.b64decode(captura))
+                    except Exception:  # noqa: BLE001 - es solo un diagnóstico
+                        pass
     finally:
         try:
             m.contexto("chrome")
