@@ -144,7 +144,8 @@ def main():
             # tarda; si no aparece, se vuelve a tocar el botón una vez.
             aviso = None
             for intento in range(2):
-                b = m.js("return [...document.querySelectorAll('button')].filter(b => b.dataset.velbrum).map(b => b.getBoundingClientRect().toJSON())")[0]
+                b = m.js("""const b = [...document.querySelectorAll('button')].find(b => b.dataset.velbrum);
+                    b.scrollIntoView({block: "center", inline: "center"}); return b.getBoundingClientRect().toJSON()""")
                 m.clic(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2)
                 for _ in range(20):
                     time.sleep(1)

@@ -71,8 +71,7 @@ def entorno_limpio():
 
 def abrir_instalacion(ruta_xpi):
     """Le pasa el XPI a Velbrum (la ventana abierta), que pide confirmación."""
-    subprocess.Popen(
-        [VELBRUM, "--", Path(ruta_xpi).as_uri()],
+    opciones = dict(
         env=entorno_limpio(),
         cwd=os.path.expanduser("~"),
         stdin=subprocess.DEVNULL,
@@ -81,6 +80,19 @@ def abrir_instalacion(ruta_xpi):
         start_new_session=True,
         close_fds=True,
     )
+    comando = [VELBRUM, "--", Path(ruta_xpi).as_uri()]
+    if sys.platform != "win32":
+        subprocess.Popen(comando, **opciones)
+        return
+    # En Windows, el navegador corre el host dentro de un «job» que termina
+    # todo lo que el host abrió cuando el host termina: el lanzador tiene que
+    # salir de ese job para llegar a pasarle el XPI a la ventana abierta.
+    sueltos = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    try:
+        subprocess.Popen(comando, creationflags=sueltos | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opciones)
+    except OSError:
+        # El job no permite salir: se lo abre igual (puede no llegar).
+        subprocess.Popen(comando, creationflags=sueltos, **opciones)
 
 
 def atender(mensaje):
