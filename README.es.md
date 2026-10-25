@@ -253,9 +253,10 @@ puertos de mensajes), se emulan las API que faltan (`chrome.offscreen`,
 `chrome.sidePanel`, `runtime.getContexts`, `storage.managed`,
 `runtime.lastError`…), los scripts de contenido se comportan como en Chrome
 donde Gecko difiere (`window.chrome`, datos de `CustomEvent` que la página puede
-leer), se descartan las reglas y opciones que Gecko rechaza, y se quita del
-manifiesto lo que Gecko no acepta. Cuando esta capa mejora, las extensiones
-instaladas se vuelven a convertir con la siguiente actualización diaria.
+leer, CSS inyectado que pierde ante el de la página), se descartan las reglas y
+opciones que Gecko rechaza, y se quita del manifiesto lo que Gecko no acepta.
+Cuando esta capa mejora, las extensiones instaladas se vuelven a convertir con la
+siguiente actualización diaria.
 
 Probado con 26 extensiones que suelen dar problemas fuera de Chrome: MetaMask,
 Phantom, Rabby, Coinbase Wallet, Trust Wallet, OKX Wallet, Bitwarden, 1Password,

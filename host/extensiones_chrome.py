@@ -39,7 +39,7 @@ EQUIVALENTES = "@equivalentes@"
 SUFIJO_ID = "@chrome.velbrum"
 # Versión de la capa de compatibilidad (compat/): cuando cambia, `actualizar`
 # vuelve a convertir las extensiones instaladas aunque no tengan versión nueva.
-VERSION_COMPAT = 2
+VERSION_COMPAT = 3
 ARCHIVOS_COMPAT = ("fondo.js", "pagina.js", "contenido.js", "permisos.html", "permisos.js")
 # Antes de llamarse Velbrum el navegador se llamaba Bruma: las extensiones que
 # ya estaban instaladas conservan su ID y su carpeta interna (ver sufijo_para).
@@ -101,6 +101,9 @@ APIS_SIN_EQUIVALENTE = (
     "wallpaper", "loginState", "platformKeys", "documentScan", "declarativeContent", "contentSettings",
 )
 RE_API = re.compile(r"\bchrome\.(" + "|".join(APIS_SIN_EQUIVALENTE) + r")\.")
+# CSS de los scripts de contenido: ver css_en_capa.
+CAPA_CSS = "velbrum-extension"
+RE_CSS_NO_ENVOLVIBLE = re.compile(rb"@(import|namespace)\b", re.I)
 RE_IMPORT_SCRIPTS = re.compile(r"\bimportScripts\s*\(([^)]*)\)")
 RE_TEXTO = re.compile(r"""(['"])((?:\\.|(?!\1).)*)\1""")
 
@@ -580,6 +583,33 @@ def con_script_primero(html, src):
     return (texto if n else etiqueta + texto).encode("utf-8")
 
 
+def css_en_capa(archivos, ruta):
+    """Copia del CSS de un script de contenido dentro de una capa (@layer);
+    devuelve su ruta, o la original si no se puede envolver.
+
+    En Chrome, el CSS que una extensión inyecta en las páginas pierde ante el
+    de la página cuando empatan; en Gecko gana. Así una regla general de la
+    extensión, como «body { height: 100% }», le pisaba a DuckDuckGo su
+    «body { height: auto }» y la página quedaba sin barra y sin rueda. Las
+    reglas en una capa pierden ante las de la página sin capa, como en Chrome.
+    La copia queda en la misma carpeta (las url() relativas siguen valiendo) y
+    el archivo original no cambia, por si lo usa también una página de la
+    extensión."""
+    ruta = ruta.lstrip("/")
+    datos = archivos.get(ruta)
+    if datos is None or RE_CSS_NO_ENVOLVIBLE.search(datos):
+        return ruta
+    try:
+        texto = datos.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return ruta
+    texto = re.sub(r'^\s*@charset\s+"[^"]*"\s*;', "", texto, flags=re.I)
+    copia = ruta[: -len(".css")] if ruta.lower().endswith(".css") else ruta
+    copia += ".velbrum-capa.css"
+    archivos[copia] = f"@layer {CAPA_CSS} {{\n{texto}\n}}\n".encode("utf-8")
+    return copia
+
+
 def adaptar_manifiesto(m, id_chrome, archivos):
     avisos = []
     nombre = m.get("name", id_chrome)
@@ -678,6 +708,8 @@ def adaptar_manifiesto(m, id_chrome, archivos):
         # scripts del «mundo» de la página, que no tienen la API de la extensión.
         if c.get("js") and c.get("world") != "MAIN":
             c["js"] = ["velbrum-compat/contenido.js"] + [j for j in c["js"] if j != "velbrum-compat/contenido.js"]
+        if c.get("css"):
+            c["css"] = [css_en_capa(archivos, css) for css in c["css"] if isinstance(css, str)]
 
     # Chrome deja bloquear webRequest.onAuthRequired (contraseñas de proxy o de
     # sitios) con webRequestAuthProvider; Gecko pide además webRequestBlocking.

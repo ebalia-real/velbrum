@@ -10,6 +10,7 @@ Baja un CRX real de la tienda de Chrome (Dark Reader) y comprueba que:
   se rechazan;
 - las consultas a la tienda no aceptan http ni redirecciones a http;
 - el actualizador detecta permisos nuevos y no baja de versión;
+- el CSS de los scripts de contenido va en una capa (@layer), como en Chrome;
 - con el interruptor de firmas activado no se instala ni actualiza nada;
 - la tabla de versiones oficiales para Firefox (extension/equivalentes.json)
   está bien formada y la descarga de addons.mozilla.org solo acepta un XPI
@@ -39,6 +40,8 @@ def cargar_conversor():
     return modulo
 
 
+# Las pruebas no leen ni tocan los datos de Velbrum del usuario.
+os.environ["XDG_DATA_HOME"] = tempfile.mkdtemp(prefix="velbrum-pruebas-")
 ec = cargar_conversor()
 resultados = []
 
@@ -221,6 +224,19 @@ def _():
     ec.adaptar_manifiesto(m, ID_DARK_READER, archivos)
     assert b"pagina.js" not in archivos["fondo.html"] and b"velbrum-compat/fondo.js" in archivos["fondo.html"]
     assert archivos["opciones.html"].startswith(b'<script src="/velbrum-compat/pagina.js"></script>')
+
+
+@prueba("compatibilidad: el CSS de los scripts de contenido pierde ante el de la página")
+def _():
+    m = {"manifest_version": 3, "content_scripts": [{"matches": ["<all_urls>"], "js": ["a.js"],
+                                                     "css": ["/estilos/modal.css", "otro.css", "falta.css"]}]}
+    archivos = {"a.js": b"", "estilos/modal.css": b'@charset "utf-8";\nbody{height:100%}\n.x{background:url(../img/x.png)}',
+                "otro.css": b'@import "base.css";\nbody{margin:0}'}
+    m, _ = ec.adaptar_manifiesto(m, ID_DARK_READER, archivos)
+    assert m["content_scripts"][0]["css"] == ["estilos/modal.velbrum-capa.css", "otro.css", "falta.css"]
+    capa = archivos["estilos/modal.velbrum-capa.css"].decode()
+    assert capa.startswith("@layer velbrum-extension {") and "@charset" not in capa and "url(../img/x.png)" in capa
+    assert archivos["estilos/modal.css"].startswith(b"@charset")  # el original queda para las páginas propias
 
 
 @prueba("firmas exigidas (velbrum --exigir-firmas): no instala ni actualiza")

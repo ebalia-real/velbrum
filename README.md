@@ -246,7 +246,7 @@ an emulated `navigator.serviceWorker` (`clients`, `postMessage`, message
 ports), missing APIs are emulated (`chrome.offscreen`, `chrome.sidePanel`,
 `runtime.getContexts`, `storage.managed`, `runtime.lastError`…), content scripts
 get Chrome's behavior where Gecko differs (`window.chrome`, `CustomEvent`
-details pages can read), rules and options Gecko rejects are dropped, and
+details pages can read, injected CSS that loses to the page's own), rules and options Gecko rejects are dropped, and
 whatever Gecko doesn't accept is removed from the manifest. When this layer
 improves, installed extensions are converted again with the next daily update.
 
