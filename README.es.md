@@ -45,6 +45,46 @@
 
 ## Instalación
 
+### Windows, macOS y otras distros de Linux
+
+Baja el paquete de tu sistema de la [última versión](https://github.com/ebalia-real/velbrum/releases/latest):
+
+| Sistema | Instalador | Portable |
+|---|---|---|
+| Windows 10/11 | `…-windows-x86_64-instalador.exe` | `…-windows-x86_64-portable.zip` |
+| macOS (Apple Silicon o Intel) | `…-macos-arm64.dmg` / `…-macos-x86_64.dmg` | `…-macos-*-portable.zip` |
+| Debian, Ubuntu, Mint | `…-linux-x86_64.deb` | `…-linux-x86_64.AppImage` |
+| Fedora, openSUSE | `…-linux-x86_64.rpm` | `…-linux-x86_64-portable.tar.gz` |
+| Arch, Manjaro | `…-linux-x86_64.pkg.tar.zst` | |
+
+- **Portable**: el perfil queda en la carpeta `datos`, al lado del programa;
+  se puede llevar en un pendrive.
+- **Windows** puede mostrar «Windows protegió su PC» (Velbrum no tiene una firma
+  de código paga): «Más información» → «Ejecutar de todas formas».
+- **macOS**: la primera vez, clic derecho en Velbrum.app → Abrir.
+- **Linux**: glibc 2.35 o más nueva (Ubuntu 22.04, Debian 12, Fedora 36 o
+  posteriores).
+
+Son la versión oficial de LibreWolf de cada sistema con todo lo de Velbrum: los
+ajustes, la marca, la ventana con Tor (con Tor incluido), las extensiones de
+Chrome y de Edge, y en Linux las fuentes de Mullvad Browser. Las arma GitHub
+Actions con cada versión (`.github/workflows/paquetes.yml`): verifica las firmas
+GPG de LibreWolf, Tor y Mullvad, y prueba el resultado en los tres sistemas
+(`portable/prueba.py`). Las diferencias con NixOS:
+
+- **Actualizaciones**: Velbrum avisa cuando hay una versión nueva y abre su página
+  para bajarla; no se instala sola. Las extensiones de Chrome sí se actualizan
+  solas, una vez por día, al abrir Velbrum.
+- **El idioma de la interfaz** es el del sistema (LibreWolf trae todos).
+- **En Windows**, la ventana con Tor usa un puerto local en lugar de un socket
+  privado (Windows no los tiene), con un circuito por sitio igual.
+
+Para armarlos a mano: `portable/bajar.sh`, `portable/compilar.py`,
+`portable/empaquetar.py` y los scripts de `portable/linux`, `portable/windows` y
+`portable/macos` (ver el workflow).
+
+### NixOS
+
 Necesita NixOS en x86_64 con un nixpkgs que tenga `librewolf-unwrapped`,
 `mullvad-browser` y `tor` (probado con NixOS 26.05).
 
@@ -459,6 +499,7 @@ muestra un aviso (`AVISO`) sin cortar la actualización del sistema.
 | `gecko/ajustes.cfg` | Los ajustes de Mullvad Browser que se suman a los de LibreWolf. |
 | `lanzador.sh` | El comando `velbrum` (con la ventana con Tor). |
 | `extension/` | La extensión de Velbrum: los botones de las tiendas, la tabla de versiones oficiales para Firefox (`equivalentes.json`) y la instalación de `.crx`. |
+| `portable/`, `.github/` | Los paquetes para Windows, macOS y otras distros de Linux: lanzador, empaquetado, instaladores y su compilación en GitHub Actions. |
 | `host/` | Host nativo y conversor de extensiones de Chrome, capa de compatibilidad, cambio de país de Tor, y el actualizador (`actualizar.sh` y su acción de polkit). |
 | `VERSION`, `firmas/` | La versión de Velbrum y las claves públicas que pueden firmar versiones. |
 | `marca/` | La marca, el botón «Velbrum» (`ajustes-velbrum.sys.mjs`) y los scripts que los aplican. |

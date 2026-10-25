@@ -1,0 +1,26 @@
+[Desktop Entry]
+Type=Application
+Name=Velbrum
+GenericName=Navegador web privado
+Comment=Navegador privado con la protección de Mullvad Browser que también usa extensiones de Chrome
+Exec=velbrum %U
+Icon=velbrum
+StartupWMClass=velbrum
+StartupNotify=true
+Terminal=false
+Categories=Network;WebBrowser;
+Keywords=navegador;internet;web;privado;mullvad;firefox;chrome;extensiones;
+MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;application/x-chrome-extension;
+Actions=nueva-ventana;ventana-privada;ventana-tor;
+
+[Desktop Action nueva-ventana]
+Name=Nueva ventana
+Exec=velbrum --nueva-ventana
+
+[Desktop Action ventana-privada]
+Name=Nueva ventana privada
+Exec=velbrum --privada
+
+[Desktop Action ventana-tor]
+Name=Nueva ventana privada con Tor
+Exec=velbrum --tor

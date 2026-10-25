@@ -20,8 +20,17 @@ import sys
 from pathlib import Path
 
 VELBRUM = "@velbrum@"
+if VELBRUM.startswith("@"):
+    # Paquetes sin Nix (portable/): el lanzador avisa dónde está.
+    VELBRUM = os.environ.get("VELBRUM_LANZADOR", "")
 MAXIMO = 1024 * 1024
 sys.path.insert(0, "@libexec@")
+if sys.platform == "win32":
+    # Los mensajes son binarios: sin traducir saltos de línea.
+    import msvcrt
+
+    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 import extensiones_chrome  # noqa: E402
 
@@ -44,13 +53,20 @@ def responder(datos):
 
 def entorno_limpio():
     # El navegador le deja al host su LD_LIBRARY_PATH, GTK_PATH y variables
-    # MOZ_*; el lanzador arranca con el entorno de la sesión.
-    quitar = ("LD_LIBRARY_PATH", "LD_PRELOAD", "GTK_PATH", "GDK_BACKEND")
-    return {
+    # MOZ_*; el lanzador arranca con el entorno de la sesión. En los paquetes
+    # sin Nix, host y lanzador son programas de PyInstaller: el lanzador tiene
+    # que arrancar como si lo abriera la sesión, no como hijo del host.
+    quitar = ("LD_LIBRARY_PATH", "LD_PRELOAD", "GTK_PATH", "GDK_BACKEND", "LD_LIBRARY_PATH_ORIG")
+    entorno = {
         clave: valor
         for clave, valor in os.environ.items()
-        if clave not in quitar and not clave.startswith(("MOZ_", "GNOME_DESKTOP_STARTUP"))
+        if clave not in quitar and not clave.startswith(("MOZ_", "GNOME_DESKTOP_STARTUP", "_PYI_", "_MEI"))
     }
+    if "LD_LIBRARY_PATH_ORIG" in os.environ:
+        entorno["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH_ORIG"]
+    if getattr(sys, "frozen", False):
+        entorno["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return entorno
 
 
 def abrir_instalacion(ruta_xpi):

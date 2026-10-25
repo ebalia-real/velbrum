@@ -1,0 +1,9 @@
+Velbrum portable para Linux
+
+Para abrirlo: ./velbrum (o doble clic en «velbrum»).
+Tus datos (perfil, extensiones, ventana con Tor) quedan en la carpeta «datos»,
+al lado de este archivo: podés llevar la carpeta Velbrum entera en un pendrive.
+Si borrás el archivo «portable», Velbrum guarda los datos en ~/.local/share/velbrum.
+
+Ayuda: ./velbrum --ayuda
+Más información: https://github.com/ebalia-real/velbrum

@@ -1,9 +1,9 @@
 """Cambia «LibreWolf» por «Velbrum» en los textos de los omni.ja de LibreWolf.
 
-Se usa al compilar (default.nix), sobre los omni.ja ya descomprimidos. Solo
-toca archivos de traducción (.ftl, .properties, .dtd), nunca código. La marca
-(brand.ftl, brand.properties) se reemplaza entera por la de esta carpeta, y la
-descripción de «Acerca de Velbrum» por una propia.
+Se usa al compilar (default.nix y portable/empaquetar.py), sobre los omni.ja
+ya descomprimidos. Solo toca archivos de traducción (.ftl, .properties, .dtd),
+nunca código. La marca (brand.ftl, brand.properties) se reemplaza entera por la
+de esta carpeta, y la descripción de «Acerca de Velbrum» por una propia.
 
 Uso: python3 -I textos.py CARPETA_MARCA CARPETA_OMNI...
 """
@@ -17,16 +17,15 @@ ACERCA = "Navegador privado basado en Firefox, con la protección de Mullvad Bro
 marca, *omnis = (pathlib.Path(a) for a in sys.argv[1:])
 cambios = 0
 for omni in omnis:
-    for propio, destino in (
-        ("brand.ftl", "localization/en-US/branding/brand.ftl"),
-        ("brand.properties", "chrome/en-US/locale/branding/brand.properties"),
-    ):
-        if (omni / destino).is_file():
-            shutil.copyfile(marca / propio, omni / destino)
-            cambios += 1
+    # La de nixpkgs solo trae inglés; las versiones oficiales de LibreWolf (los
+    # paquetes de portable/) traen todos los idiomas: se cambian todos.
+    for marca_idioma in [*omni.glob("localization/*/branding/brand.ftl"),
+                         *omni.glob("chrome/*/locale/branding/brand.properties")]:
+        shutil.copyfile(marca / marca_idioma.name, marca_idioma)
+        cambios += 1
 
-    archivos = list(omni.glob("localization/en-US/**/*.ftl"))
-    archivos += [p for p in omni.glob("chrome/en-US/locale/**/*") if p.suffix in (".properties", ".dtd")]
+    archivos = list(omni.glob("localization/*/**/*.ftl"))
+    archivos += [p for p in omni.glob("chrome/*/locale/**/*") if p.suffix in (".properties", ".dtd")]
     for archivo in archivos:
         texto = archivo.read_text(encoding="utf-8")
         nuevo = re.sub(r"(?m)^about-librewolf = .*$", f"about-librewolf = {ACERCA}", texto)

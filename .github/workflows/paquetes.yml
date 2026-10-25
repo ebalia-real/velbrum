@@ -1,0 +1,189 @@
+# Velbrum para Windows, macOS y Linux sin Nix (ver portable/ y README.md,
+# «Otros sistemas»). En cada etiqueta vAAAA.MM.DD arma los paquetes sobre la
+# versión oficial de LibreWolf de cada sistema, los prueba (portable/prueba.py)
+# y los deja en un borrador de versión en GitHub.
+name: Paquetes para Windows, macOS y Linux
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recursos:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Herramientas
+        run: sudo apt-get update -q && sudo apt-get install -y -q librsvg2-bin imagemagick icnsutils
+      - name: Íconos y gráficos de la marca
+        run: portable/recursos.sh recursos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recursos
+          path: recursos
+
+  linux:
+    needs: recursos
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: recursos, path: recursos }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Herramientas
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb dbus-x11 libgtk-3-0 libasound2 libx11-xcb1 ruby ruby-dev build-essential rpm libarchive-tools zstd file
+          sudo gem install --no-document fpm
+          python -m pip install --upgrade pyinstaller certifi
+          . portable/versiones.env
+          curl -sfL --retry 3 -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL/appimagetool-x86_64.AppImage"
+          curl -sfL --retry 3 -o runtime-x86_64 "https://github.com/AppImage/type2-runtime/releases/download/$APPIMAGE_RUNTIME/runtime-x86_64"
+          chmod +x appimagetool && sudo mv appimagetool /usr/local/bin/
+      - name: Bajar y verificar LibreWolf, Tor y Mullvad Browser
+        run: portable/bajar.sh linux x86_64 descargas
+      - name: Compilar lanzador y host
+        run: python portable/compilar.py build
+      - name: Armar Velbrum
+        run: >
+          python portable/empaquetar.py --sistema linux
+          --navegador "$(cat descargas/navegador.txt)" --tor descargas/tor
+          --lanzador build/dist/velbrum --host build/dist/velbrum-host
+          --recursos recursos --mullvad "$(cat descargas/mullvad.txt)" --salida armado
+      - name: Probar (portable, con la conversión de una extensión de Chrome)
+        run: |
+          cp -a armado/Velbrum prueba && touch prueba/portable
+          xvfb-run -a dbus-run-session -- python portable/prueba.py --conversion \
+            --datos prueba/datos --host prueba/host/velbrum-host -- prueba/velbrum
+      - name: Paquetes (.tar.gz, AppImage, .deb, .rpm, Arch)
+        run: APPIMAGE_EXTRACT_AND_RUN=1 APPIMAGE_RUNTIME="$PWD/runtime-x86_64" portable/linux/paquetes.sh armado/Velbrum recursos paquetes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-linux
+          path: paquetes/*
+          compression-level: 0
+
+  windows:
+    needs: recursos
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: recursos, path: recursos }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Herramientas
+        run: |
+          python -m pip install --upgrade pyinstaller certifi
+          choco install innosetup -y --no-progress
+          . portable/versiones.env
+          curl -sfL --retry 3 -o rcedit.exe "https://github.com/electron/rcedit/releases/download/$RCEDIT/rcedit-x64.exe"
+      - name: Bajar y verificar LibreWolf y Tor
+        run: portable/bajar.sh windows x86_64 descargas
+      - name: Compilar lanzador y host
+        run: |
+          mkdir -p build && cp -r recursos build/recursos
+          python portable/compilar.py build
+      - name: Armar Velbrum
+        run: |
+          python portable/empaquetar.py --sistema windows \
+            --navegador "$(cat descargas/navegador.txt)" --tor descargas/tor \
+            --lanzador build/dist/velbrum --host build/dist/velbrum-host \
+            --recursos recursos --salida armado
+          ./rcedit.exe armado/Velbrum/navegador/librewolf.exe --set-icon recursos/velbrum.ico
+          cp recursos/velbrum.ico armado/velbrum.ico
+      - name: Probar (portable)
+        run: |
+          cp -r armado/Velbrum prueba && touch prueba/portable
+          python portable/prueba.py --datos prueba/datos --host prueba/host/velbrum-host.exe -- prueba/velbrum.exe --headless
+      - name: Paquetes (instalador y portable)
+        run: |
+          version=$(cat VERSION)
+          mkdir -p paquetes
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" -Q "-DVersion=$version" "-DOrigen=$(cygpath -w "$PWD/armado/Velbrum")" "-DSalida=$(cygpath -w "$PWD/paquetes")" portable/windows/velbrum.iss
+          cp -r armado/Velbrum portable-win && touch portable-win/portable && cp portable/windows/LEEME.txt portable-win/LEEME.txt
+          mkdir zip && mv portable-win zip/Velbrum
+          python -c "import shutil, sys; shutil.make_archive(sys.argv[1], 'zip', 'zip', 'Velbrum')" "paquetes/velbrum-$version-windows-x86_64-portable"
+          ls -la paquetes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-windows
+          path: paquetes/*
+          compression-level: 0
+
+  macos:
+    needs: recursos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arq: arm64 }
+          - { runner: macos-15-intel, arq: x86_64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: recursos, path: recursos }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Herramientas
+        run: |
+          python -m pip install --upgrade pyinstaller certifi
+          command -v gpg || brew install gnupg
+      - name: Bajar y verificar LibreWolf y Tor
+        run: portable/bajar.sh macos ${{ matrix.arq }} descargas
+      - name: Compilar lanzador y host
+        run: |
+          mkdir -p build && cp -r recursos build/recursos
+          python portable/compilar.py build
+      - name: Armar Velbrum
+        run: >
+          python portable/empaquetar.py --sistema macos
+          --navegador "$(cat descargas/navegador.txt)" --tor descargas/tor
+          --lanzador build/dist/velbrum --host build/dist/velbrum-host
+          --recursos recursos --salida armado
+      - name: Paquetes (.dmg y portable; firma ad hoc)
+        run: portable/macos/paquetes.sh armado/Velbrum.app ${{ matrix.arq }} paquetes
+      - name: Probar (portable)
+        run: |
+          mkdir prueba && cp -R armado/Velbrum.app prueba/ && touch prueba/portable
+          python portable/prueba.py --datos prueba/datos \
+            --host prueba/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
+            -- prueba/Velbrum.app/Contents/MacOS/velbrum --headless
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-macos-${{ matrix.arq }}
+          path: paquetes/*
+          compression-level: 0
+
+  publicar:
+    needs: [linux, windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: paquetes-*
+          path: paquetes
+          merge-multiple: true
+      - name: Borrador de la versión con los paquetes y sus sumas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd paquetes
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+          version=${GITHUB_REF_NAME#v}
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Velbrum $version" --notes-file ../portable/NOTAS.md ./*

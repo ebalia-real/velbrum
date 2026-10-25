@@ -1,0 +1,10 @@
+Velbrum portable para Windows
+
+Para abrirlo: doble clic en velbrum.exe.
+Tus datos (perfil, extensiones, ventana con Tor) quedan en la carpeta «datos»,
+al lado de velbrum.exe: podés llevar la carpeta Velbrum entera en un pendrive.
+
+Windows puede mostrar «Windows protegió su PC» porque Velbrum no tiene una firma
+de código paga: tocá «Más información» → «Ejecutar de todas formas».
+
+Más información: https://github.com/ebalia-real/velbrum

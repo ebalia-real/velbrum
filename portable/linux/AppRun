@@ -1,0 +1,3 @@
+#!/bin/sh
+# AppImage de Velbrum: abre el lanzador de adentro.
+exec "$(dirname "$(readlink -f "$0")")/usr/lib/velbrum/velbrum" "$@"

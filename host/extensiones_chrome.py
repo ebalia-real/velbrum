@@ -21,6 +21,7 @@ import os
 import pathlib
 import re
 import shutil
+import ssl
 import struct
 import subprocess
 import sys
@@ -36,6 +37,13 @@ COMPAT = "@compat@"  # carpeta con compat/fondo.js
 # Tabla de extensiones de las tiendas con versión oficial para Firefox
 # (extension/equivalentes.json; la extensión de Velbrum usa la misma).
 EQUIVALENTES = "@equivalentes@"
+# En NixOS, default.nix pone esas rutas. En los paquetes para Windows, macOS y
+# Linux sin Nix (portable/), compat/ y equivalentes.json van junto al programa.
+_BASE = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else globals().get("__file__", ".")))
+if COMPAT.startswith("@"):
+    COMPAT = os.path.join(_BASE, "compat")
+if EQUIVALENTES.startswith("@"):
+    EQUIVALENTES = os.path.join(_BASE, "equivalentes.json")
 SUFIJO_ID = "@chrome.velbrum"
 # Versión de la capa de compatibilidad (compat/): cuando cambia, `actualizar`
 # vuelve a convertir las extensiones instaladas aunque no tengan versión nueva.
@@ -114,6 +122,10 @@ class ErrorExtension(Exception):
 
 # ── Rutas ──────────────────────────────────────────────────────────────────
 def carpeta_datos():
+    # Los paquetes sin Nix (portable/) dicen dónde están los datos: junto al
+    # programa en la versión portable, o la carpeta de datos de cada sistema.
+    if os.environ.get("VELBRUM_DATOS"):
+        return os.environ["VELBRUM_DATOS"]
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
     return os.path.join(base, "velbrum")
 
@@ -178,6 +190,20 @@ class _SoloRedireccionesSeguras(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(pedido, fp, codigo, mensaje, cabeceras, nueva)
 
 
+def _contexto_tls():
+    """Verificación de certificados con los del sistema y, en los paquetes sin
+    Nix (PyInstaller), también con los de certifi: el programa compilado en
+    una distro busca los del sistema donde los pone esa distro, y en otras
+    (y en macOS) no los encontraría."""
+    contexto = ssl.create_default_context()
+    try:
+        import certifi
+    except ImportError:
+        return contexto
+    contexto.load_verify_locations(certifi.where())
+    return contexto
+
+
 def pedir(url, donde="la tienda de Chrome", solo_https=True):
     """Descarga `url` (como máximo MAXIMO_DESCARGA bytes). Con `solo_https`,
     no acepta http ni redirecciones a http."""
@@ -192,7 +218,8 @@ def pedir(url, donde="la tienda de Chrome", solo_https=True):
             f"(KHTML, like Gecko) Chrome/{mayor}.0.0.0 Safari/537.36"
         },
     )
-    abridor = urllib.request.build_opener(_SoloRedireccionesSeguras(solo_https))
+    abridor = urllib.request.build_opener(_SoloRedireccionesSeguras(solo_https),
+                                          urllib.request.HTTPSHandler(context=_contexto_tls()))
     try:
         with abridor.open(pedido, timeout=90) as respuesta:
             datos = respuesta.read(MAXIMO_DESCARGA + 1)

@@ -165,13 +165,18 @@ let reinicioPendiente = false;
 // sitios (ver aislarCircuitos).
 let clave = Services.uuid.generateUUID().toString();
 
-// El perfil de Velbrum es ~/.local/share/velbrum/gecko: los interruptores se
-// anotan en la carpeta de arriba, donde los lee el lanzador. Con otro perfil
-// (la ventana con Tor, o velbrum --profile …) no se anota nada.
+// El perfil de Velbrum es <datos>/gecko (en NixOS ~/.local/share/velbrum; en
+// los paquetes para otros sistemas, la carpeta que indica el lanzador en
+// VELBRUM_DATOS): los interruptores se anotan en <datos>, donde los lee el
+// lanzador. Con otro perfil (la ventana con Tor, o velbrum --profile …) no se
+// anota nada.
 function carpetaDatos() {
   const perfil = PathUtils.profileDir;
   const datos = PathUtils.parent(perfil);
-  return PathUtils.filename(perfil) == "gecko" && PathUtils.filename(datos) == "velbrum" ? datos : null;
+  if (PathUtils.filename(perfil) != "gecko") {
+    return null;
+  }
+  return (Services.env.get("VELBRUM_DATOS") || PathUtils.filename(datos) == "velbrum") ? datos : null;
 }
 
 async function anotar(casilla, valor) {
@@ -411,8 +416,20 @@ function instalar(ventana, version) {
 }
 
 function ofrecerActualizacion(ventana, version) {
+  // En NixOS la instala el ayudante (pkexec + rebuild); en los demás sistemas
+  // se baja el instalador o el portable nuevo de la página de la versión.
+  const primero = AYUDANTE
+    ? { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) }
+    : {
+        label: "Descargar",
+        accessKey: "D",
+        callback: () => {
+          ventana.openTrustedLinkIn(`https://github.com/${REPO}/releases/tag/v${version}`, "tab");
+          return false;
+        },
+      };
   return barra(ventana, `Hay una versión nueva de Velbrum (${version}).`, [
-    { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) },
+    primero,
     {
       label: "Ahora no",
       accessKey: "A",

@@ -1,0 +1,13 @@
+Velbrum para macOS
+
+Instalar: arrastrá Velbrum.app a Aplicaciones.
+Portable: dejá la carpeta «Velbrum Portable» donde quieras (o en un pendrive);
+tus datos quedan en la carpeta «datos», al lado de Velbrum.app.
+
+La primera vez macOS no lo abre porque Velbrum no está registrado en Apple:
+hacé clic derecho en Velbrum.app → Abrir → Abrir. Si dice que «está dañado»,
+abrí la Terminal y escribí:
+    xattr -dr com.apple.quarantine /Applications/Velbrum.app
+(o la ruta donde esté Velbrum.app).
+
+Más información: https://github.com/ebalia-real/velbrum

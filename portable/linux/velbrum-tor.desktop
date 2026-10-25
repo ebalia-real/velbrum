@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Velbrum con Tor
+Comment=Ventana privada de Velbrum que sale por Tor
+Exec=velbrum --tor %U
+Icon=velbrum
+StartupWMClass=velbrum-tor
+NoDisplay=true
+Terminal=false
+Categories=Network;WebBrowser;
