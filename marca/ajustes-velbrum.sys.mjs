@@ -16,6 +16,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   CustomizableUI: "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   ExtensionPermissions: "resource://gre/modules/ExtensionPermissions.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
+  RFPHelper: "resource://gre/modules/RFPHelper.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   setInterval: "resource://gre/modules/Timer.sys.mjs",
 });
@@ -819,6 +820,34 @@ function migrarAjustesViejos() {
   }
 }
 
+// ── Bordes de privacidad al cambiar el tamaño de la ventana ──────────────
+// Firefox recalcula el tamaño redondeado de la página con un ResizeObserver,
+// pero en Wayland al maximizar o restaurar lee las medidas de antes: la página
+// queda un paso atrasada (más chica que la ventana, o más grande y corrida, con
+// la barra de desplazamiento afuera). Cuando la ventana termina de cambiar de
+// tamaño, se vuelve a calcular con las medidas ya asentadas.
+function bordesAlRedimensionar(ventana) {
+  let espera = null;
+  const recalcular = () => {
+    ventana.clearTimeout(espera);
+    espera = ventana.setTimeout(() => {
+      if (ventana.closed || !ventana.gBrowser) {
+        return;
+      }
+      if (!Services.prefs.getBoolPref("privacy.resistFingerprinting.letterboxing", false)) {
+        return;
+      }
+      try {
+        lazy.RFPHelper._updateSizeForTabsInWindow(ventana);
+      } catch (error) {
+        console.error("Velbrum: bordes de privacidad", error);
+      }
+    }, 250);
+  };
+  ventana.addEventListener("resize", recalcular);
+  ventana.addEventListener("sizemodechange", recalcular);
+}
+
 export function iniciar(ventana) {
   if (ventana) {
     ventana.addEventListener(
@@ -828,6 +857,11 @@ export function iniciar(ventana) {
           menusDeTor(ventana);
         } catch (error) {
           console.error("Velbrum: menús de Tor", error);
+        }
+        try {
+          bordesAlRedimensionar(ventana);
+        } catch (error) {
+          console.error("Velbrum: bordes de privacidad", error);
         }
       },
       { once: true }

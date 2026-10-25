@@ -288,10 +288,7 @@ not deleted) or set `velbrum.extensionesDeChrome = false` to lock it system-wide
   your user can read (700).
 - **Not covered**: like in any browser, a program already running as your user
   can modify your profile; with signatures required, Firefox demands Mozilla's
-  signature in that case too. Gecko doesn't tell extensions the sender's
-  origin, so Velbrum derives it from the frame's address: a sandboxed frame of
-  a site counts as that site (Chrome would say `null`). Wallets still ask you
-  to confirm every request.
+  signature in that case too.
 
 Run the converter's security tests (needs internet) from Velbrum's folder:
 

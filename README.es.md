@@ -299,10 +299,7 @@ extensiones de Chrome se desactivan, no se borran) o usa
   carpetas que solo tu usuario puede leer (700).
 - **Lo que no cubre**: como en cualquier navegador, un programa que ya corre con
   tu usuario puede modificar tu perfil; con las firmas exigidas, Firefox pide la
-  firma de Mozilla también en ese caso. Gecko no les dice a las extensiones el
-  origen de quien les escribe, así que Velbrum lo saca de la dirección del
-  marco: un marco aislado (sandbox) de un sitio cuenta como ese sitio (en Chrome
-  sería `null`). Las billeteras igual piden confirmar cada pedido.
+  firma de Mozilla también en ese caso.
 
 Para repetir las pruebas de seguridad del conversor (necesita internet), desde
 la carpeta de Velbrum:
