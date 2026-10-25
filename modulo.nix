@@ -98,6 +98,11 @@ in
         printf '[Desktop Entry]\nType=Application\nName=Velbrum\nExec=true\nNoDisplay=true\n' > "$carpeta/velbrum-refrescar-menu.desktop"
         sleep 1
         rm -f "$carpeta/velbrum-refrescar-menu.desktop"
+        # Lo mismo con los íconos: GNOME Shell relee el tema cuando cambia la
+        # fecha de alguna de sus carpetas, y las del store no cambian nunca
+        # (sin esto, Velbrum queda con el ícono genérico hasta cerrar sesión).
+        mkdir -p "$HOME/.local/share/icons/hicolor"
+        touch "$HOME/.local/share/icons/hicolor"
         # Velbrum antes se llamaba Bruma: si estaba anclado en la barra de
         # GNOME con el nombre viejo, queda anclado con el nuevo.
         if command -v gsettings > /dev/null; then
