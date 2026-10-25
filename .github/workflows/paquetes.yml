@@ -104,8 +104,7 @@ jobs:
         run: |
           cp -r armado/Velbrum prueba && touch prueba/portable
           python portable/prueba.py --datos prueba/datos --host prueba/host/velbrum-host.exe -- prueba/velbrum.exe --headless
-      - name: Probar la conversión de una extensión de Chrome (informativo)
-        continue-on-error: true
+      - name: Probar la conversión de una extensión de Chrome
         run: |
           cp -r armado/Velbrum conversion && touch conversion/portable
           python portable/prueba.py --conversion --datos conversion/datos --host conversion/host/velbrum-host.exe -- conversion/velbrum.exe
@@ -169,8 +168,7 @@ jobs:
           python portable/prueba.py --datos prueba/datos \
             --host prueba/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
             -- prueba/Velbrum.app/Contents/MacOS/velbrum --headless
-      - name: Probar la conversión de una extensión de Chrome (informativo)
-        continue-on-error: true
+      - name: Probar la conversión de una extensión de Chrome
         run: |
           mkdir conversion && cp -R armado/Velbrum.app conversion/ && touch conversion/portable
           python portable/prueba.py --conversion --datos conversion/datos \

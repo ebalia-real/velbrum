@@ -160,11 +160,17 @@ def main():
             elif args.conversion:
                 m.clic(aviso["x"] + aviso["width"] / 2, aviso["bottom"] - 34)  # «Convertir la de Chrome igual»
                 cartel = None
+                # El cartel de instalación pendiente, en cualquier pestaña: en
+                # Windows la pestaña nueva queda atrás si la ventana no está en
+                # primer plano (en CI nadie la enfoca) y el panel se dibuja recién
+                # al activarla, pero el pedido ya está.
                 for _ in range(60):
                     time.sleep(2)
                     m.contexto("chrome")
-                    cartel = m.js("""const p = document.querySelector("#addon-webext-permissions-notification");
-                        return p && !p.hidden ? p.querySelector(".popup-notification-description")?.textContent : null""")
+                    cartel = m.js("""for (const v of Services.wm.getEnumerator("navigator:browser"))
+                          for (const n of v.PopupNotifications._currentNotifications)
+                            if (n.id == "addon-webext-permissions" && !n.dismissed) return n.options?.name || n.message || "pendiente";
+                        return null""")
                     m.contexto("content")
                     if cartel:
                         break
