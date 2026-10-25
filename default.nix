@@ -52,6 +52,7 @@ let
     cp ${./extension/tienda.js} fuente/tienda.js
     cp ${./extension/edge.js} fuente/edge.js
     cp ${./extension/aviso.js} fuente/aviso.js
+    cp ${./extension/equivalentes.json} fuente/equivalentes.json
     for t in 48 96; do
       cp ${iconos}/share/icons/hicolor/''${t}x''${t}/apps/velbrum.png fuente/iconos/velbrum-$t.png
     done
@@ -284,9 +285,12 @@ pkgs.runCommand "velbrum-${versionFirefox}"
     substitute ${manifiestoHost} $out/share/velbrum/velbrum.extensiones.json --replace-fail @out@ $out
 
     cp -r ${./host/compat} $out/libexec/velbrum/compat
+    # La misma tabla de versiones oficiales para Firefox que usa la extensión.
+    cp ${./extension/equivalentes.json} $out/libexec/velbrum/equivalentes.json
     substitute ${./host/extensiones_chrome.py} $out/libexec/velbrum/extensiones_chrome.py \
       --replace-fail @versionChromium@ ${versionChrome} \
-      --replace-fail @compat@ $out/libexec/velbrum/compat
+      --replace-fail @compat@ $out/libexec/velbrum/compat \
+      --replace-fail @equivalentes@ $out/libexec/velbrum/equivalentes.json
     # Cambio de país de la ventana con Tor (velbrum --tor-pais).
     cp ${./host/tor-pais.py} $out/libexec/velbrum/tor-pais.py
     ${pkgs.python3}/bin/python3 -I -m py_compile $out/libexec/velbrum/extensiones_chrome.py $out/libexec/velbrum/host-extensiones $out/libexec/velbrum/tor-pais.py

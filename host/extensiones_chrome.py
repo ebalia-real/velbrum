@@ -33,6 +33,9 @@ import zipfile
 
 VERSION_CHROMIUM = "@versionChromium@"
 COMPAT = "@compat@"  # carpeta con compat/fondo.js
+# Tabla de extensiones de las tiendas con versión oficial para Firefox
+# (extension/equivalentes.json; la extensión de Velbrum usa la misma).
+EQUIVALENTES = "@equivalentes@"
 SUFIJO_ID = "@chrome.velbrum"
 # Versión de la capa de compatibilidad (compat/): cuando cambia, `actualizar`
 # vuelve a convertir las extensiones instaladas aunque no tengan versión nueva.
@@ -56,6 +59,10 @@ URL_SIN_ACTUALIZACIONES = "https://localhost/velbrum/sin-actualizaciones.json"
 RE_ID = re.compile(r"(?<![a-z])([a-p]{32})(?![a-z])")
 # Servidores a los que se pregunta por versiones (siempre por https).
 SERVIDORES_CONSULTA = {"clients2.google.com", "edge.microsoft.com"}
+# Versiones oficiales para Firefox: la API pública de addons.mozilla.org.
+SERVIDOR_AMO = "addons.mozilla.org"
+API_AMO = f"https://{SERVIDOR_AMO}/api/v5/addons/addon/"
+RE_SLUG = re.compile(r"[a-z0-9][a-z0-9_-]{0,99}")
 # Límites contra archivos enormes o «bombas zip».
 MAXIMO_DESCARGA = 256 * 1024 * 1024
 MAXIMO_DESCOMPRIMIDO = 512 * 1024 * 1024
@@ -240,6 +247,71 @@ def descargar(url, sha256, tienda):
     if sha256 and hashlib.sha256(datos).hexdigest() != sha256.lower():
         raise ErrorExtension(f"lo que bajé de {TIENDAS[tienda]} no es lo que anunció (el hash no coincide)")
     return datos
+
+
+# ── Versiones oficiales para Firefox (addons.mozilla.org) ──────────────────
+def equivalente(id_chrome, tienda="chrome"):
+    """La fila de equivalentes.json de una extensión de la tienda de Chrome o
+    de Edge que tiene versión oficial para Firefox, o None."""
+    try:
+        with open(EQUIVALENTES, encoding="utf-8") as f:
+            tabla = json.load(f)
+    except (OSError, ValueError):
+        return None
+    for fila in tabla if isinstance(tabla, list) else []:
+        if (
+            isinstance(fila, dict)
+            and tienda in TIENDAS
+            and fila.get(tienda) == id_chrome
+            and RE_SLUG.fullmatch(str(fila.get("amo", "")))
+        ):
+            return fila
+    return None
+
+
+def archivo_amo(respuesta):
+    """De la respuesta de la API de AMO, (versión, url, sha256) del XPI
+    que firmó Mozilla. Rechaza lo que no sea un complemento público para
+    Firefox, servido por https desde addons.mozilla.org."""
+    try:
+        datos = json.loads(respuesta)
+        version = datos["current_version"]
+        archivo = version["file"]
+        url, hash_ = archivo["url"], archivo["hash"]
+        compatible = "firefox" in (version.get("compatibility") or {})
+        publico = datos.get("status") == "public" and not datos.get("is_disabled")
+    except (ValueError, KeyError, TypeError) as error:
+        raise ErrorExtension("addons.mozilla.org respondió algo inesperado") from error
+    if not publico or not compatible:
+        raise ErrorExtension("la versión para Firefox ya no está disponible en addons.mozilla.org")
+    partes = urllib.parse.urlsplit(str(url))
+    if partes.scheme != "https" or partes.hostname != SERVIDOR_AMO:
+        raise ErrorExtension(f"addons.mozilla.org indicó una dirección no permitida: {url}")
+    algoritmo, _, sha256 = str(hash_).partition(":")
+    if algoritmo != "sha256" or not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise ErrorExtension("addons.mozilla.org no indicó el hash del archivo")
+    return str(version.get("version", "")), url, sha256
+
+
+def preparar_firefox(id_chrome, tienda):
+    """Baja de addons.mozilla.org la versión oficial para Firefox de una
+    extensión de la tienda de Chrome o de Edge; devuelve la ruta del XPI y un
+    resumen. Mozilla la firmó, así que se puede instalar también con las
+    firmas exigidas (Gecko verifica esa firma al instalarla)."""
+    fila = equivalente(id_chrome, tienda)
+    if not fila:
+        raise ErrorExtension(f"la extensión {id_chrome} no tiene una versión para Firefox conocida")
+    slug = fila["amo"]
+    version, url, sha256 = archivo_amo(pedir(f"{API_AMO}{slug}/", SERVIDOR_AMO))
+    xpi = pedir(url, SERVIDOR_AMO)
+    if hashlib.sha256(xpi).hexdigest() != sha256:
+        raise ErrorExtension("lo que bajé de addons.mozilla.org no es lo que anunció (el hash no coincide)")
+    carpeta = os.path.join(carpeta_datos(), "extensiones-firefox")
+    os.makedirs(carpeta, mode=0o700, exist_ok=True)
+    ruta = os.path.join(carpeta, slug + ".xpi")
+    escribir_atomico(ruta, xpi)
+    return ruta, {"id_chrome": id_chrome, "tienda": tienda, "amo": slug,
+                  "nombre": fila.get("nombre") or slug, "version": version, "avisos": []}
 
 
 def _varint(datos, i):
@@ -941,6 +1013,10 @@ def main(argv):
         print(f"{info['nombre']} {info['version']} ({TIENDAS[info['tienda']]}) convertida para Velbrum.", file=sys.stderr)
         for aviso in info["avisos"]:
             print(f"  ⚠ {aviso}", file=sys.stderr)
+        oficial = equivalente(info["id_chrome"], info["tienda"])
+        if oficial:
+            print(f"  ★ Tiene versión oficial para Firefox, más confiable que la convertida: "
+                  f"https://{SERVIDOR_AMO}/firefox/addon/{oficial['amo']}/", file=sys.stderr)
         print(pathlib.Path(ruta).as_uri())
         return 0
     if argv[:1] == ["actualizar"]:

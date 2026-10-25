@@ -33,7 +33,7 @@
 |---|---|
 | 🛡️ **Mullvad-level privacy** | Letterboxing, the same fonts and language as Mullvad Browser, per-site isolation, encrypted DNS… Measured side by side with Mullvad Browser. Unlike Mullvad, sites keep the web features they expect, so pages don't break. |
 | 🧅 **Tor in one click** | *New tab with Tor* in the ≡ menu or on any link. A separate private window with its own Tor, one circuit per site and a choice of exit country. |
-| 🧩 **Firefox and Chrome extensions** | An **Add to Velbrum** button in the Chrome Web Store and the Edge store, plus any `.crx` file. Extensions are adapted to Gecko automatically (wallets like MetaMask and Phantom, password managers, userscript managers…), their author signature is verified, and they update daily. |
+| 🧩 **Firefox and Chrome extensions** | An **Add to Velbrum** button in the Chrome Web Store and the Edge store, plus any `.crx` file. Extensions are adapted to Gecko automatically (wallets like MetaMask and Phantom, password managers, userscript managers…), their author signature is verified, and they update daily. If there's an official Firefox version, Velbrum offers that one first. |
 | ⚙️ **Velbrum button** | Security level (Standard, Safer, Safest), privacy borders, always private, light mode and signed-extensions-only, right in the toolbar. |
 | 🔒 **Encrypted DNS** | DNS over HTTPS with Quad9 only, with exceptions for your local network. |
 | 🪶 **Light mode** | Fewer processes and less cache for computers with little memory; turns on by itself below 4 GB of RAM. |
@@ -222,6 +222,15 @@ its database share those values.
   [Edge store](https://microsoftedge.microsoft.com/addons), the store button
   reads **Add to Velbrum**: click it and confirm in Firefox's install dialog. The
   "switch to Chrome/Edge" banners disappear.
+- **If there's an official Firefox version**, Velbrum offers it before
+  converting: a notice with **Install the Firefox version** (downloaded from
+  [addons.mozilla.org](https://addons.mozilla.org), signed by Mozilla, and
+  updated automatically like in Firefox) or **Convert the Chrome one anyway**.
+  This covers MetaMask, Phantom, Bitwarden, 1Password, LastPass, Dashlane, Proton
+  Pass, Grammarly, Honey, Dark Reader, Stylus, Violentmonkey, Tampermonkey,
+  SponsorBlock, Wappalyzer, React Developer Tools, Adblock Plus and more (the list
+  is in `extension/equivalentes.json`). The Firefox version can be installed even
+  with signatures required.
 - **Any `.crx` file** you download: when the download finishes, Velbrum shows a
   notification; click it and confirm. A `.crx` opened from your file manager
   installs the same way.
@@ -249,7 +258,8 @@ SponsorBlock, Video Speed Controller, Wappalyzer, React Developer Tools, Loom
 and Google Translate. All of them install and start; wallets inject
 `window.ethereum` and `window.solana` into pages. What Gecko simply doesn't have
 can't work (screen recording in Loom, for example). If an extension also has a
-Firefox version on addons.mozilla.org, that one is still the best choice.
+Firefox version on addons.mozilla.org, that one is still the best choice, which
+is why Velbrum offers it first.
 
 Mozilla can't sign Chrome extensions, so Velbrum accepts unsigned extensions —
 always through Firefox's confirmation dialog. To accept **only Mozilla-signed
@@ -269,6 +279,11 @@ not deleted) or set `velbrum.extensionesDeChrome = false` to lock it system-wide
 - **Downloads**: HTTPS to each store's servers, the hash announced by the store,
   the author's CRX3 signature and a signed ID that matches the requested one.
   Huge files, zip bombs and path traversal (`..`, absolute paths) are rejected.
+- **Firefox versions**: only the ones in `extension/equivalentes.json` (a page
+  can't ask for another), over HTTPS from addons.mozilla.org, with the hash its
+  API announces; Firefox checks Mozilla's signature when installing.
+  `python3 -I pruebas/equivalentes.py` checks the table against AMO and both
+  stores.
 - **File permissions**: the profile and converted extensions live in folders only
   your user can read (700).
 - **Not covered**: like in any browser, a program already running as your user
@@ -402,6 +417,7 @@ warning (`AVISO`) without failing the system rebuild.
 |---|---|
 | Profile (history, extensions, settings) | `~/.local/share/velbrum/gecko/` |
 | Converted Chrome and Edge extensions | `~/.local/share/velbrum/extensiones-chrome/` |
+| Firefox versions downloaded from addons.mozilla.org | `~/.local/share/velbrum/extensiones-firefox/` |
 | Tor window profile (always private) | `~/.local/share/velbrum/tor/` |
 | Tor data and log | `~/.local/share/velbrum/tor-red/` |
 | Tor sockets (SOCKS and control) | `/run/user/<uid>/velbrum-tor/` (your user only) |
@@ -412,7 +428,7 @@ warning (`AVISO`) without failing the system rebuild.
 | `default.nix` | The package: LibreWolf + settings, Mullvad's fonts, Velbrum's own extension and launcher. |
 | `gecko/ajustes.cfg` | Mullvad Browser's settings added on top of LibreWolf's. |
 | `lanzador.sh` | The `velbrum` command (Tor window included). |
-| `extension/` | Velbrum's extension: the store buttons and `.crx` installs. |
+| `extension/` | Velbrum's extension: the store buttons, the table of official Firefox versions (`equivalentes.json`) and `.crx` installs. |
 | `host/` | Native host and converter for Chrome extensions, compatibility layer, Tor exit-country helper, and the updater (`actualizar.sh` and its polkit action). |
 | `VERSION`, `firmas/` | Velbrum's version and the public keys allowed to sign versions. |
 | `marca/` | Branding, the Velbrum button (`ajustes-velbrum.sys.mjs`) and the scripts that apply them. |

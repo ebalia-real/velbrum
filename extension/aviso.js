@@ -1,17 +1,20 @@
 // Velbrum: lo que comparten los botones de las tiendas (tienda.js en la de
-// Chrome, edge.js en la de Edge): el cartel de abajo a la derecha y el pedido
-// de instalación a background.js. Se carga antes que ellos.
+// Chrome, edge.js en la de Edge): el cartel de abajo a la derecha, la oferta de
+// la versión oficial para Firefox cuando la hay y el pedido de instalación a
+// background.js. Se carga antes que ellos.
 
 var TEXTO_VELBRUM = "Agregar a Velbrum";
 
 // ── Mensajes (abajo a la derecha) ─────────────────────────────────────────
 let aviso = null;
-// Con `alTocar`, el cartel lleva el botón «Agregar a Velbrum».
-function mostrar(texto, alTocar = null) {
+// `botones`: una función (un botón «Agregar a Velbrum» que la llama) o una
+// lista de { texto, alTocar, secundario }. Sin botones, solo el texto.
+function mostrar(texto, botones = []) {
+  if (typeof botones === "function") botones = [{ texto: TEXTO_VELBRUM, alTocar: botones }];
   if (!aviso) {
     const anfitrion = document.createElement("div");
     anfitrion.id = "velbrum-aviso";
-    // Cerrado: la página no puede leer ni tocar el cartel ni su botón.
+    // Cerrado: la página no puede leer ni tocar el cartel ni sus botones.
     const sombra = anfitrion.attachShadow({ mode: "closed" });
     sombra.innerHTML = `
       <style>
@@ -22,20 +25,27 @@ function mostrar(texto, alTocar = null) {
         .titulo { font-size: 12px; opacity: .8; margin-bottom: 6px; }
         button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 9px 16px;
                  background: #8573ff; color: #fff; cursor: pointer; margin-top: 10px; width: 100%; }
+        button.secundario { background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+                            font-weight: 500; margin-top: 8px; }
         button:disabled { opacity: .6; cursor: progress; }
-        [hidden] { display: none; }
       </style>
-      <div class="caja"><div class="titulo">Velbrum</div><div class="texto"></div>
-        <button type="button" hidden>${TEXTO_VELBRUM}</button></div>`;
-    aviso = { anfitrion, texto: sombra.querySelector(".texto"), boton: sombra.querySelector("button") };
-    aviso.boton.addEventListener("click", (evento) => {
-      if (evento.isTrusted) aviso?.alTocar?.();
-    });
+      <div class="caja"><div class="titulo">Velbrum</div><div class="texto"></div><div class="botones"></div></div>`;
+    aviso = { anfitrion, texto: sombra.querySelector(".texto"), botones: sombra.querySelector(".botones") };
     document.documentElement.append(anfitrion);
   }
   aviso.texto.textContent = texto;
-  aviso.alTocar = alTocar;
-  aviso.boton.hidden = !alTocar;
+  aviso.botones.replaceChildren(
+    ...botones.map(({ texto, alTocar, secundario }) => {
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.textContent = texto;
+      if (secundario) boton.className = "secundario";
+      boton.addEventListener("click", (evento) => {
+        if (evento.isTrusted) alTocar();
+      });
+      return boton;
+    }),
+  );
 }
 function ocultar() {
   aviso?.anfitrion.remove();
@@ -46,23 +56,61 @@ function hayAviso() {
 }
 
 // ── Instalación ───────────────────────────────────────────────────────────
+// background.js sabe de qué tienda es la página: acá solo va el ID.
 let instalando = false;
-// `accion`: «instalar-chrome» o «instalar-edge» (de qué tienda bajarla).
-async function instalarEnVelbrum(accion, id) {
+async function instalarEnVelbrum(id) {
   if (!id || instalando) return;
+  // Si la extensión tiene versión oficial para Firefox (equivalentes.json),
+  // se ofrece esa primero: la hacen sus autores para Gecko y la firma Mozilla.
+  let oficial = null;
+  try {
+    oficial = await browser.runtime.sendMessage({ accion: "equivalente", id });
+  } catch {
+    oficial = null;
+  }
+  if (oficial) ofrecerVersionDeFirefox(id, oficial);
+  else pedirInstalacion("convertir", id);
+}
+
+function ofrecerVersionDeFirefox(id, oficial, texto = null) {
+  mostrar(
+    texto ??
+      `${oficial.nombre} tiene una versión oficial para Firefox, hecha por sus autores ` +
+        `y firmada por Mozilla (addons.mozilla.org). Es más confiable que adaptar la de ${oficial.tienda}.`,
+    [
+      { texto: "Instalar la versión de Firefox", alTocar: () => pedirInstalacion("instalar-firefox", id, oficial) },
+      {
+        texto: `Convertir la de ${oficial.tienda} igual`,
+        alTocar: () => pedirInstalacion("convertir", id),
+        secundario: true,
+      },
+    ],
+  );
+}
+
+// `accion`: «convertir» (adaptar la de la tienda) o «instalar-firefox».
+async function pedirInstalacion(accion, id, oficial = null) {
+  if (instalando) return;
   instalando = true;
-  const reintentar = () => instalarEnVelbrum(accion, id);
-  mostrar("Descargando la extensión y adaptándola a Velbrum…");
+  const fallo = (error) =>
+    oficial
+      ? ofrecerVersionDeFirefox(id, oficial, `No se pudo instalar la versión de Firefox: ${error}`)
+      : mostrar(`No se pudo instalar: ${error}`, () => pedirInstalacion(accion, id));
+  mostrar(
+    oficial
+      ? "Descargando la versión de Firefox de addons.mozilla.org…"
+      : "Descargando la extensión y adaptándola a Velbrum…",
+  );
   try {
     const r = await browser.runtime.sendMessage({ accion, id });
     if (r?.ok) {
       const avisos = r.avisos?.length ? `\n\nTené en cuenta:\n• ${r.avisos.join("\n• ")}` : "";
       mostrar(`${r.nombre} ${r.version}: tocá «Agregar» en el cartel del navegador.${avisos}`);
     } else {
-      mostrar(`No se pudo instalar: ${r?.error ?? "error desconocido"}`, reintentar);
+      fallo(r?.error ?? "error desconocido");
     }
   } catch (error) {
-    mostrar(`No se pudo instalar: ${error.message}`, reintentar);
+    fallo(error.message);
   } finally {
     instalando = false;
   }

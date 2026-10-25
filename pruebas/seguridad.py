@@ -10,8 +10,12 @@ Baja un CRX real de la tienda de Chrome (Dark Reader) y comprueba que:
   se rechazan;
 - las consultas a la tienda no aceptan http ni redirecciones a http;
 - el actualizador detecta permisos nuevos y no baja de versión;
-- con el interruptor de firmas activado no se instala ni actualiza nada.
+- con el interruptor de firmas activado no se instala ni actualiza nada;
+- la tabla de versiones oficiales para Firefox (extension/equivalentes.json)
+  está bien formada y la descarga de addons.mozilla.org solo acepta un XPI
+  público, por https desde addons.mozilla.org y con el hash anunciado.
 """
+import json
 import importlib.util
 import io
 import os
@@ -29,6 +33,7 @@ ID_DARK_READER = "eimadpbcbfnmbkopoojfekhnkhdbieeh"
 def cargar_conversor():
     fuente = (AQUI / "host/extensiones_chrome.py").read_text(encoding="utf-8")
     fuente = fuente.replace("@versionChromium@", "154.0.0.0").replace("@compat@", str(AQUI / "host/compat"))
+    fuente = fuente.replace("@equivalentes@", str(AQUI / "extension/equivalentes.json"))
     modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("extensiones_chrome", loader=None))
     exec(compile(fuente, "extensiones_chrome.py", "exec"), modulo.__dict__)
     return modulo
@@ -228,6 +233,75 @@ def _():
         assert ec.actualizar() == ([], [])
         pathlib.Path(tmp, "velbrum/firmas-obligatorias").unlink()
         assert not ec.firmas_obligatorias()
+
+
+@prueba("versiones para Firefox: la tabla está bien formada")
+def _():
+    tabla = json.loads((AQUI / "extension/equivalentes.json").read_text(encoding="utf-8"))
+    vistos = set()
+    for fila in tabla:
+        assert set(fila) <= {"nombre", "amo", "chrome", "edge"} and fila["nombre"], fila
+        assert ec.RE_SLUG.fullmatch(fila["amo"]), fila
+        for tienda in ("chrome", "edge"):
+            if tienda in fila:
+                assert ec.RE_ID.fullmatch(fila[tienda]) and (tienda, fila[tienda]) not in vistos, fila
+                vistos.add((tienda, fila[tienda]))
+                assert ec.equivalente(fila[tienda], tienda) == fila
+    assert ec.equivalente(ID_DARK_READER, "chrome")["amo"] == "darkreader"
+    assert ec.equivalente(ID_DARK_READER, "edge") is None  # cada tienda con sus ID
+    assert ec.equivalente("a" * 32, "chrome") is None
+    debe_fallar(ec.preparar_firefox, "a" * 32, "chrome")
+
+
+def respuesta_amo(**cambios):
+    datos = {"name": "X", "status": "public", "is_disabled": False,
+             "current_version": {"version": "1.0", "compatibility": {"firefox": {"min": "128.0", "max": "*"}},
+                                 "file": {"url": "https://addons.mozilla.org/firefox/downloads/file/1/x.xpi",
+                                          "hash": "sha256:" + "0" * 64}}}
+    for clave, valor in cambios.items():
+        if clave in ("url", "hash"):
+            datos["current_version"]["file"][clave] = valor
+        elif clave == "compatibility":
+            datos["current_version"][clave] = valor
+        else:
+            datos[clave] = valor
+    return json.dumps(datos).encode()
+
+
+@prueba("versiones para Firefox: solo XPI públicos, por https, de addons.mozilla.org")
+def _():
+    assert ec.archivo_amo(respuesta_amo())[1:] == ("https://addons.mozilla.org/firefox/downloads/file/1/x.xpi", "0" * 64)
+    debe_fallar(ec.archivo_amo, respuesta_amo(url="http://addons.mozilla.org/x.xpi"))
+    debe_fallar(ec.archivo_amo, respuesta_amo(url="https://addons.mozilla.org.ejemplo.com/x.xpi"))
+    debe_fallar(ec.archivo_amo, respuesta_amo(url="https://ejemplo.com/x.xpi"))
+    debe_fallar(ec.archivo_amo, respuesta_amo(hash="md5:" + "0" * 32))
+    debe_fallar(ec.archivo_amo, respuesta_amo(hash="sha256:corto"))
+    debe_fallar(ec.archivo_amo, respuesta_amo(status="disabled"))
+    debe_fallar(ec.archivo_amo, respuesta_amo(is_disabled=True))
+    debe_fallar(ec.archivo_amo, respuesta_amo(compatibility={"android": {"min": "120.0"}}))
+    debe_fallar(ec.archivo_amo, b"<html>no es JSON</html>")
+
+
+@prueba("versiones para Firefox: Dark Reader real, con el hash verificado y las firmas exigidas")
+def _():
+    with tempfile.TemporaryDirectory() as tmp:
+        os.environ["XDG_DATA_HOME"] = tmp
+        pathlib.Path(tmp, "velbrum").mkdir()
+        pathlib.Path(tmp, "velbrum/firmas-obligatorias").touch()  # firmada por Mozilla: se permite
+        ruta, info = ec.preparar_firefox(ID_DARK_READER, "chrome")
+        assert info["amo"] == "darkreader" and info["version"], info
+        bueno = pathlib.Path(ruta).read_bytes()
+        with zipfile.ZipFile(ruta) as xpi:
+            nombres = xpi.namelist()
+            assert "manifest.json" in nombres and any(n.startswith("META-INF/") for n in nombres)
+        # Un XPI distinto del anunciado se rechaza.
+        original = ec.pedir
+        ec.pedir = lambda url, *a, **k: original(url, *a, **k) if "/api/" in url else b"PK otro archivo"
+        try:
+            debe_fallar(ec.preparar_firefox, ID_DARK_READER, "chrome")
+        finally:
+            ec.pedir = original
+        assert pathlib.Path(ruta).read_bytes() == bueno  # el que ya estaba no se pisó
 
 
 fallas = 0

@@ -1,6 +1,8 @@
 // Velbrum: instala extensiones de Chrome en el navegador, sin pasos manuales.
 // - En la Chrome Web Store, el botón «Agregar a Chrome» instala en Velbrum
-//   (tienda.js); en la tienda de Edge, el botón «Obtener» (edge.js).
+//   (tienda.js); en la tienda de Edge, el botón «Obtener» (edge.js). Si la
+//   extensión tiene versión oficial para Firefox (equivalentes.json), se
+//   ofrece esa primero, y si la elegís se baja de addons.mozilla.org.
 // - Cualquier archivo .crx que se descargue: Velbrum avisa con una notificación
 //   y, si la tocás, lo convierte e instala (así un sitio no puede hacerte
 //   aparecer el cartel de instalación sin que lo pidas).
@@ -30,16 +32,40 @@ function avisar(titulo, texto) {
   });
 }
 
-// Pedidos de las tiendas: cada una solo puede pedir sus extensiones.
+// Pedidos de las tiendas. La tienda sale de la página que pide (solo su marco
+// principal), así cada una solo puede pedir sus extensiones.
 const TIENDAS = {
-  "instalar-chrome": "https://chromewebstore.google.com/",
-  "instalar-edge": "https://microsoftedge.microsoft.com/addons/",
+  chrome: { url: "https://chromewebstore.google.com/", nombre: "Chrome" },
+  edge: { url: "https://microsoftedge.microsoft.com/addons/", nombre: "Edge" },
 };
+const tiendaDe = (remitente) =>
+  remitente.frameId === 0
+    ? Object.keys(TIENDAS).find((tienda) => remitente.url?.startsWith(TIENDAS[tienda].url))
+    : undefined;
+
+// Extensiones de las tiendas con versión oficial para Firefox en
+// addons.mozilla.org (equivalentes.json; el host usa la misma tabla).
+const equivalentes = fetch(browser.runtime.getURL("equivalentes.json"))
+  .then((r) => r.json())
+  .catch(() => []);
+async function equivalente(tienda, id) {
+  const fila = (await equivalentes).find((f) => f[tienda] === id);
+  return fila ? { nombre: fila.nombre, tienda: TIENDAS[tienda].nombre } : null;
+}
+
 browser.runtime.onMessage.addListener((mensaje, remitente) => {
-  const tienda = TIENDAS[mensaje?.accion];
-  if (!tienda || !remitente.url?.startsWith(tienda) || remitente.frameId !== 0) return undefined;
-  if (typeof mensaje.id !== "string" || !/^[a-p]{32}$/.test(mensaje.id)) return undefined;
-  return pedir({ accion: mensaje.accion, id: mensaje.id });
+  const tienda = tiendaDe(remitente);
+  if (!tienda || typeof mensaje?.id !== "string" || !/^[a-p]{32}$/.test(mensaje.id)) return undefined;
+  switch (mensaje.accion) {
+    case "equivalente":
+      return equivalente(tienda, mensaje.id);
+    case "convertir":
+      return pedir({ accion: `instalar-${tienda}`, id: mensaje.id });
+    case "instalar-firefox":
+      return pedir({ accion: "instalar-firefox", tienda, id: mensaje.id });
+    default:
+      return undefined;
+  }
 });
 
 // Archivos .crx descargados de cualquier sitio: primero una notificación;

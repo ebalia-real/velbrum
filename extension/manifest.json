@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Velbrum",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Instala en Velbrum las extensiones de Chrome: desde la Chrome Web Store, la tienda de Edge o cualquier archivo .crx que descargues.",
   "browser_specific_settings": {
     "gecko": { "id": "chrome@velbrum", "strict_min_version": "128.0" }

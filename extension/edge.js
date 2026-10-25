@@ -2,7 +2,8 @@
 // cada extensión, que fuera de Edge viene desactivado, la instala en Velbrum.
 // Sirve en la página de la extensión y en las listas de la tienda. Si la
 // tienda cambia y el botón no aparece, en la página de la extensión se muestra
-// uno propio abajo a la derecha. El cartel, la instalación y el seguimiento
+// uno propio abajo a la derecha. Si la extensión tiene versión oficial para
+// Firefox, se ofrece esa primero. El cartel, la instalación y el seguimiento
 // de la página están en aviso.js.
 
 const RE_DETALLE = /\/addons\/detail\/(?:[^/]+\/)?([a-p]{32})(?:[/?#]|$)/;
@@ -13,7 +14,7 @@ const RE_OBTENER = /^(obtener|get|abrufen|obtenir|obter|ottieni|ophalen|pobierz|
 
 const idDeLaPagina = () => location.pathname.match(RE_DETALLE)?.[1] ?? null;
 const idDelBoton = (boton) => boton.id.match(RE_ID_BOTON)?.[1] ?? idDeLaPagina();
-const instalar = (boton) => instalarEnVelbrum("instalar-edge", boton ? idDelBoton(boton) : idDeLaPagina());
+const instalar = (boton) => instalarEnVelbrum(boton ? idDelBoton(boton) : idDeLaPagina());
 // El botón ya marcado con el ID se reconoce por eso: cualquier texto vale.
 const cualquierTexto = () => true;
 

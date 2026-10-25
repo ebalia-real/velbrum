@@ -1,6 +1,7 @@
 // Velbrum: en la Chrome Web Store, el botón «Agregar a Chrome» de la tienda
 // instala la extensión en Velbrum. Si la tienda cambia y el botón no aparece, se
-// muestra uno propio abajo a la derecha. El cartel, la instalación y el
+// muestra uno propio abajo a la derecha. Si la extensión tiene versión oficial
+// para Firefox, se ofrece esa primero. El cartel, la instalación y el
 // seguimiento de la página están en aviso.js.
 
 const RE_DETALLE = /\/detail\/(?:[^/]+\/)?([a-p]{32})(?:[/?#]|$)/;
@@ -10,7 +11,7 @@ const RE_AGREGAR =
 const RE_NO_GRACIAS = /^(no,? gracias|no,? thanks|non merci|nein,? danke|não,? obrigado)$/i;
 
 const idActual = () => location.pathname.match(RE_DETALLE)?.[1] ?? null;
-const instalar = () => instalarEnVelbrum("instalar-chrome", idActual());
+const instalar = () => instalarEnVelbrum(idActual());
 const esAgregarAChrome = (texto) => RE_AGREGAR.test(texto);
 
 // ── Botón de la tienda ────────────────────────────────────────────────────

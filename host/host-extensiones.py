@@ -5,8 +5,11 @@ La extensión propia de Velbrum le pide instalar extensiones de Chrome:
 - {"accion": "instalar-chrome", "id"}: la descarga de la Chrome Web Store;
 - {"accion": "instalar-edge", "id"}: la descarga de la tienda de Edge;
 - {"accion": "instalar-crx", "ruta"}: usa un .crx ya descargado.
-En todos los casos la adapta a Gecko (extensiones_chrome.py) y abre la
-instalación en Velbrum, que muestra su cartel «¿Agregar …?».
+En esos casos la adapta a Gecko (extensiones_chrome.py). Con
+{"accion": "instalar-firefox", "id", "tienda"} no la adapta: baja de
+addons.mozilla.org su versión oficial para Firefox (solo las de
+equivalentes.json). Después abre la instalación en Velbrum, que muestra su
+cartel «¿Agregar …?».
 """
 import json
 import os
@@ -69,6 +72,16 @@ def atender(mensaje):
         return {"ok": False, "error": "pedido inválido"}
     accion = mensaje.get("accion")
     tienda = None
+    if accion == "instalar-firefox":
+        origen, tienda = mensaje.get("id"), mensaje.get("tienda")
+        if not isinstance(origen, str) or not re.fullmatch(r"[a-p]{32}", origen) or tienda not in ("chrome", "edge"):
+            return {"ok": False, "error": "pedido inválido"}
+        try:
+            ruta_xpi, info = extensiones_chrome.preparar_firefox(origen, tienda)
+        except extensiones_chrome.ErrorExtension as error:
+            return {"ok": False, "error": str(error)}
+        abrir_instalacion(ruta_xpi)
+        return {"ok": True, **info}
     if accion in ("instalar-chrome", "instalar-edge"):
         origen = mensaje.get("id")
         if not isinstance(origen, str) or not re.fullmatch(r"[a-p]{32}", origen):
