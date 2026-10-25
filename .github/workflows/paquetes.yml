@@ -107,8 +107,8 @@ jobs:
       - name: Probar la conversión de una extensión de Chrome (informativo)
         continue-on-error: true
         run: |
-          rm -rf prueba && cp -r armado/Velbrum prueba && touch prueba/portable
-          python portable/prueba.py --conversion --datos prueba/datos --host prueba/host/velbrum-host.exe -- prueba/velbrum.exe --headless
+          cp -r armado/Velbrum conversion && touch conversion/portable
+          python portable/prueba.py --conversion --datos conversion/datos --host conversion/host/velbrum-host.exe -- conversion/velbrum.exe --headless
       - name: Paquetes (instalador y portable)
         run: |
           version=$(cat VERSION)
@@ -166,10 +166,10 @@ jobs:
       - name: Probar la conversión de una extensión de Chrome (informativo)
         continue-on-error: true
         run: |
-          rm -rf prueba && mkdir prueba && cp -R armado/Velbrum.app prueba/ && touch prueba/portable
-          python portable/prueba.py --conversion --datos prueba/datos \
-            --host prueba/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
-            -- prueba/Velbrum.app/Contents/MacOS/velbrum --headless
+          mkdir conversion && cp -R armado/Velbrum.app conversion/ && touch conversion/portable
+          python portable/prueba.py --conversion --datos conversion/datos \
+            --host conversion/Velbrum.app/Contents/Resources/velbrum/host/velbrum-host \
+            -- conversion/Velbrum.app/Contents/MacOS/velbrum --headless
       - uses: actions/upload-artifact@v4
         with:
           name: paquetes-macos-${{ matrix.arq }}
