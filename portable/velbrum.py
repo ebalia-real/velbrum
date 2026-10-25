@@ -614,14 +614,24 @@ def main(argv):
             # le llega al navegador el .xpi que convirtió el host). Se espera:
             # si quien abrió el lanzador termina antes, Windows lo cierra.
             try:
-                subprocess.run(comando, env=entorno(), close_fds=True, timeout=120)
+                r = subprocess.run(comando, env=entorno(), close_fds=True, timeout=120)
+                anotar(f"direcciones a la ventana abierta: {urls} → código {r.returncode}")
             except subprocess.TimeoutExpired:
-                pass
+                anotar(f"direcciones a la ventana abierta: {urls} → sin respuesta en 2 minutos")
         else:
             subprocess.Popen(comando, env=entorno(), close_fds=True)
         return 0
     os.execve(str(NAVEGADOR), comando, entorno())
     return 0
+
+
+def anotar(texto):
+    """Una línea en datos/velbrum.log (en Windows el lanzador no tiene consola)."""
+    try:
+        with open(DATOS / "velbrum.log", "a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {texto}\n")
+    except OSError:
+        pass
 
 
 def registrar_error():

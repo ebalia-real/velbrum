@@ -177,6 +177,22 @@ def main():
                     res["registro"] = registro.read_text(errors="replace")[-2000:] if registro.exists() else ""
                     convertidas = args.datos / "extensiones-chrome"
                     res["convertidas"] = sorted(p.name for p in convertidas.glob("*")) if convertidas.is_dir() else []
+                    # ¿El lanzador le puede pasar el .xpi a la ventana abierta?
+                    xpis = sorted(convertidas.glob("*.xpi")) if convertidas.is_dir() else []
+                    if xpis:
+                        subprocess.run([*comando, xpis[0].as_uri()], timeout=150)
+                        directo = None
+                        for _ in range(20):
+                            time.sleep(2)
+                            m.contexto("chrome")
+                            directo = m.js("""const p = document.querySelector("#addon-webext-permissions-notification");
+                                return p && !p.hidden ? p.querySelector(".popup-notification-description")?.textContent : null""")
+                            m.contexto("content")
+                            if directo:
+                                break
+                        res["cartel_con_el_lanzador_directo"] = directo
+                        registro = args.datos / "velbrum.log"
+                        res["registro_despues"] = registro.read_text(errors="replace")[-2000:] if registro.exists() else ""
                     try:
                         import base64
                         captura = m.cmd("WebDriver:TakeScreenshot", {"full": False})["value"]
