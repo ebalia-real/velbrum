@@ -87,16 +87,35 @@ def abrir_instalacion(ruta_xpi):
     # En Windows, el navegador corre el host dentro de un «job» que termina
     # todo lo que el host abrió cuando el host termina: el lanzador tiene que
     # salir de ese job para llegar a pasarle el XPI a la ventana abierta.
-    # Si el job no deja salir, el host espera a que el lanzador termine (con
-    # Velbrum abierto solo le pasa el archivo a la ventana: es un instante).
+    # Si el job no deja salir, se le pide a Windows (WMI) que lo arranque
+    # desde afuera: un proceso dentro del job puede no llegar a hablar con la
+    # ventana abierta.
     sueltos = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     try:
-        proceso = subprocess.Popen(comando, creationflags=sueltos | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opciones)
-    except OSError:
-        proceso = subprocess.Popen(comando, creationflags=sueltos, **opciones)
+        subprocess.Popen(comando, creationflags=sueltos | subprocess.CREATE_BREAKAWAY_FROM_JOB, **opciones)
+        anotar("lanzador fuera del job (breakaway)")
+        return
+    except OSError as error:
+        anotar(f"el job no deja salir ({error}); se usa WMI")
+    linea = subprocess.list2cmdline(comando).replace("'", "''")
+    powershell = [
+        "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+        f"(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{linea}'}}).ReturnValue",
+    ]
+    r = subprocess.run(powershell, capture_output=True, text=True, timeout=60, env=opciones["env"],
+                       creationflags=subprocess.CREATE_NO_WINDOW)
+    anotar(f"WMI: {r.stdout.strip()} {r.stderr.strip()[-300:]}")
+
+
+def anotar(texto):
+    """Una línea en el registro de Velbrum (datos/velbrum.log), para saber qué
+    pasó en Windows, donde nada de esto tiene consola."""
     try:
-        proceso.wait(timeout=120)
-    except subprocess.TimeoutExpired:
+        import time
+
+        with open(os.path.join(extensiones_chrome.carpeta_datos(), "velbrum.log"), "a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} host: {texto}\n")
+    except OSError:
         pass
 
 
