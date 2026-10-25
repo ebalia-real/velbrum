@@ -180,7 +180,7 @@ def main():
                     # ¿El lanzador le puede pasar el .xpi a la ventana abierta?
                     xpis = sorted(convertidas.glob("*.xpi")) if convertidas.is_dir() else []
                     if xpis:
-                        subprocess.run([*comando, xpis[0].as_uri()], timeout=150)
+                        subprocess.run([*comando, xpis[0].resolve().as_uri()], timeout=150)
                         directo = None
                         for _ in range(20):
                             time.sleep(2)
