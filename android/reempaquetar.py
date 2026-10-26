@@ -375,6 +375,14 @@ def copiar_extension(carpeta, recursos):
     tablas["ARCHIVOS_COMPAT"] = list(conversor.ARCHIVOS_COMPAT)  # en orden
     (destino / "tablas.json").write_text(json.dumps(tablas, indent=1), encoding="utf-8")
 
+    # Para buscar versiones nuevas (actualizar.js): la de este APK y su
+    # arquitectura, que elige qué APK bajar.
+    abis = [d.name for d in (carpeta / "lib").iterdir() if d.is_dir()]
+    if len(abis) != 1:
+        raise SystemExit(f"reempaquetar.py: se esperaba un APK de una sola arquitectura, no {abis}")
+    (destino / "actualizar.json").write_text(json.dumps(
+        {"version": VERSION_VELBRUM, "abi": abis[0], "repositorio": VERSIONES["REPOSITORIO"]}, indent=1), encoding="utf-8")
+
     for archivo, reemplazos in (
         ("manifest.json", {"@version@": VERSION_VELBRUM}),
         ("convertir.js", {"@versionChromium@": version_chrome()}),
@@ -439,7 +447,11 @@ def main():
     p.add_argument("--salida", required=True, type=Path)
     p.add_argument("--clave", type=Path, help="almacén PKCS#12 con la clave de firma de Velbrum")
     p.add_argument("--trabajo", type=Path, help="carpeta de trabajo (por defecto, una temporal)")
+    p.add_argument("--version", help="otra versión de Velbrum que la de VERSION (para probar el actualizador)")
     args = p.parse_args()
+    if args.version:
+        global VERSION_VELBRUM
+        VERSION_VELBRUM = args.version
 
     temporal = None
     if args.trabajo:

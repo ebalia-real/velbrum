@@ -139,6 +139,11 @@ def main():
     abrir_app()
     esperar(r"Welcome to Velbrum|Velbrum", 120)
     captura("bienvenida")
+    # IronFox pone sus valores por defecto (DNS cifrado en protección máxima
+    # con Quad9) en una tarea aparte al arrancar: si la bienvenida se pasa
+    # antes de que termine, queda la protección «Default» de Fenix. En un
+    # teléfono termina enseguida; en un emulador cargado puede tardar.
+    time.sleep(30)
     vio_quad9 = False
     for _ in range(25):
         en_pantalla = textos()
@@ -147,6 +152,9 @@ def main():
         if any("Quad9" in t for t in en_pantalla):
             vio_quad9 = True
             captura("dns-quad9")
+        elif any("Choose provider" in t for t in en_pantalla):
+            time.sleep(2)  # la pantalla del proveedor todavía se está dibujando
+            continue
         # uBlock Origin se instala de addons.mozilla.org, como lo ofrece la
         # bienvenida («Add» y después «OK»).
         n = buscar(r"^(Not now|Continue|Start browsing|Skip|Add|OK)$")

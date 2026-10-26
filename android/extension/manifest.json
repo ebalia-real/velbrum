@@ -11,9 +11,14 @@
     "https://*.googleusercontent.com/*",
     "https://edge.microsoft.com/*",
     "https://msedgeextensions.sf.tlu.dl.delivery.mp.microsoft.com/*",
-    "https://addons.mozilla.org/*"
+    "https://addons.mozilla.org/*",
+    "https://api.github.com/*",
+    "<all_urls>",
+    "alarms",
+    "storage",
+    "tabs"
   ],
-  "background": { "scripts": ["convertir.js", "fondo.js"] },
+  "background": { "scripts": ["convertir.js", "fondo.js", "actualizar.js"] },
   "content_scripts": [
     {
       "matches": ["https://chromewebstore.google.com/*"],

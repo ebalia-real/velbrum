@@ -405,10 +405,16 @@ What changes:
   IronFox prefers Firefox's fingerprinting protection because a few sites break;
   if one does, `privacy.resistFingerprinting` can be turned off in
   `about:config`.
-- **Updates**: each Velbrum release brings new APKs built on the IronFox version
-  in `android/versiones.env`. Android installs them over the previous one
-  because they're signed with the same key. [Obtainium](https://obtainium.imranr.dev)
-  can follow the GitHub releases.
+- **Updates from inside the browser**: Velbrum asks GitHub for the latest
+  release when it starts and every few hours (at most twice a day). If there's a
+  newer one with an APK for your phone, a notice at the bottom of the page you're
+  viewing offers **Update** (downloads the APK; then tap *Open* and *Update* in
+  Android's dialog) or **Later** (it asks again in 3 days). The first time,
+  Android asks you to let Velbrum install apps. Android only installs the update
+  over your Velbrum if it's signed with the same key, so a different APK can't
+  pass for Velbrum. Each release is built on the IronFox version in
+  `android/versiones.env`. To turn the check off, set `velbrum.actualizaciones`
+  to `false` in `about:config` (the code is in `android/extension/actualizar.js`).
 
 The APKs are signed with Velbrum's own key. Its certificate's SHA-256 is
 `VELBRUM_CERTIFICADO` in `android/versiones.env`; `reempaquetar.py` refuses to

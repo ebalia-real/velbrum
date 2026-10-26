@@ -23,6 +23,9 @@ this.velbrum = class extends ExtensionAPI {
           IFAddonUtils.installAddon(uri).catch((error) => console.error("Velbrum: instalación", error));
           return true;
         },
+        async buscarActualizaciones() {
+          return Services.prefs.getBoolPref("velbrum.actualizaciones", true);
+        },
       },
     };
   }

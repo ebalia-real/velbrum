@@ -424,10 +424,17 @@ Lo que cambia:
   Browser. IronFox prefiere la protección contra huella de Firefox porque algunos
   sitios se rompen; si pasa, `privacy.resistFingerprinting` se puede apagar en
   `about:config`.
-- **Actualizaciones**: cada versión de Velbrum trae APK nuevos, armados sobre la
-  versión de IronFox de `android/versiones.env`. Android los instala encima del
-  anterior porque están firmados con la misma clave.
-  [Obtainium](https://obtainium.imranr.dev) puede seguir las versiones de GitHub.
+- **Actualizaciones desde el navegador**: Velbrum le pregunta a GitHub por la
+  última versión al arrancar y cada algunas horas (dos veces por día como mucho).
+  Si hay una más nueva con APK para tu teléfono, un cartel abajo en la página que
+  estás mirando ofrece **Actualizar** (baja el APK; después se toca *Abrir* y
+  *Actualizar* en el cartel de Android) o **Más tarde** (vuelve a preguntar en 3
+  días). La primera vez, Android pide permiso para que Velbrum instale
+  aplicaciones. Android solo instala la actualización encima de tu Velbrum si
+  está firmada con la misma clave, así que otro APK no puede hacerse pasar por
+  Velbrum. Cada versión se arma sobre la versión de IronFox de
+  `android/versiones.env`. Para apagar la búsqueda: `velbrum.actualizaciones` en
+  `false` en `about:config` (el código está en `android/extension/actualizar.js`).
 
 Los APK están firmados con una clave propia de Velbrum. El SHA-256 de su
 certificado es `VELBRUM_CERTIFICADO` en `android/versiones.env`;
