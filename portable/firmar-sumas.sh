@@ -21,7 +21,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 gh release download "$etiqueta" --repo "$repo" -p SHA256SUMS -D "$tmp"
-gh api "repos/$repo/releases/tags/$etiqueta" > "$tmp/version.json"
+# (Con «gh release view»: la API por etiqueta no encuentra los borradores.)
+gh release view "$etiqueta" --repo "$repo" --json assets > "$tmp/version.json"
 python3 -I - "$tmp/SHA256SUMS" "$tmp/version.json" "$version" <<'PY'
 import json, re, sys
 sumas, datos, version = open(sys.argv[1]).read().splitlines(), json.load(open(sys.argv[2])), sys.argv[3]
