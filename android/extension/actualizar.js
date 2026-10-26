@@ -24,9 +24,12 @@ function esMasNueva(a, b) {
   return false;
 }
 
+// La versión y la arquitectura de este APK.
+const configuracion = () => fetch(browser.runtime.getURL("actualizar.json")).then((r) => r.json());
+
 // La versión nueva para este teléfono, o null: { version, actual, apk, notas }.
 async function versionNueva() {
-  const config = await (await fetch(browser.runtime.getURL("actualizar.json"))).json();
+  const config = await configuracion();
   const respuesta = await fetch(`https://api.github.com/repos/${config.repositorio}/releases/latest`, {
     credentials: "omit",
     cache: "no-store",
@@ -70,6 +73,8 @@ async function mostrarAviso(pestana) {
   if (!/^https?:/.test(pestana.url ?? "") || pestana.incognito) return;
   const { nueva, posponerHasta = 0 } = await browser.storage.local.get(["nueva", "posponerHasta"]);
   if (!nueva || Date.now() < posponerHasta) return;
+  // Ya instalada (por ejemplo, bajada a mano) antes de la próxima consulta.
+  if (!esMasNueva(nueva.version, (await configuracion()).version)) return;
   try {
     await browser.tabs.executeScript(pestana.id, { file: "aviso-actualizacion.js", runAt: "document_idle" });
   } catch {
