@@ -385,8 +385,9 @@ horas y decenas de GB por versión, así que no se compila nada: GitHub Actions
 (`.github/workflows/android.yml`) baja los APK de IronFox, los acepta solo si
 están firmados con el certificado de IronFox (fijado en
 `android/versiones.env`; IronFox no publica firmas GPG), cambia los recursos y
-la configuración de Gecko con `android/reempaquetar.py` (el código de la
-aplicación no se toca), los firma con la clave de Velbrum y los prueba en un
+la configuración de Gecko con `android/reempaquetar.py` (del código de la
+aplicación cambia un solo valor inicial: el DNS cifrado empieza en protección
+máxima, como quiere IronFox y su bienvenida no lograba), los firma con la clave de Velbrum y los prueba en un
 emulador con `android/prueba.py`: instalación desde cero, marca, Quad9 y una
 extensión de la Chrome Web Store convertida e instalada. Su ID de aplicación es
 `io.github.ebalia_real.velbrum`.

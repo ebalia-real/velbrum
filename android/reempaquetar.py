@@ -3,7 +3,8 @@
 android/bajar.sh) con la marca, los ajustes y la extensión de Velbrum, firmado
 con la clave de Velbrum. Ver README.md, «Android».
 
-No se toca el código de la aplicación (classes*.dex): se cambian los recursos
+Del código de la aplicación (classes*.dex) se cambia una sola cosa: el DNS
+cifrado empieza en protección máxima (ver dns_maximo). Lo demás son los recursos
 (nombre, textos, íconos), el ID de la aplicación y, dentro de assets/omni.ja,
 la configuración de Gecko (ironfox.cfg + gecko/ajustes.cfg +
 android/ajustes-android.cfg), la marca de Gecko y el arranque de la extensión
@@ -77,6 +78,61 @@ def cambiar_paquete(carpeta):
     yml.write_text(texto, encoding="utf-8")
 
 
+# ── Código: DNS cifrado en protección máxima ───────────────────────────────
+def dns_maximo(carpeta, apk):
+    """El DNS cifrado empieza en protección máxima (con Quad9), como en la PC.
+
+    IronFox guarda «máxima» en una tarea aparte al arrancar, solo si el ajuste
+    todavía no existe; la bienvenida ya armó su pantalla con el valor de Fenix
+    («predeterminada», el DNS del sistema) y al tocar «Continuar» lo guarda.
+    Se cambia el valor de Fenix cuando el ajuste no existe: de 0 a 3. Es un
+    registro que vale 0 y se usa después: vale 3 solo en esa llamada.
+
+    Solo se rearma el .dex de esa clase; los demás quedan como vienen."""
+    ajustes = list(carpeta.glob("smali*/org/mozilla/fenix/utils/Settings.smali"))
+    if len(ajustes) != 1:
+        raise SystemExit("reempaquetar.py: no encontré Settings.smali de Fenix")
+    lineas = ajustes[0].read_text(encoding="utf-8").split("\n")
+    clave = next(i for i, l in enumerate(lineas) if "->pref_key_doh_settings_mode:I" in l)
+    llamada = next(i for i in range(clave, clave + 20) if "->intPreference(ILjava/lang/String;)" in lineas[i])
+    registro = re.search(r"invoke-static \{(\w+), \w+\}", lineas[llamada]).group(1)
+    # La última asignación al registro antes de la llamada es 0, y los saltos
+    # a etiquetas de ese tramo salen del mismo tramo: ahí vale 0 siempre.
+    def asigna(linea):
+        return (re.match(rf"[a-z0-9/-]+ {registro},", linea) or re.fullmatch(rf"move-result[a-z-]* {registro}", linea)) \
+            and not linea.startswith(("invoke", "if-", "iput", "sput", "aput"))
+    ultima = next(i for i in range(llamada - 1, 0, -1) if asigna(lineas[i].strip()))
+    inicio = max(i for i in range(llamada) if lineas[i].startswith(".method"))
+    fin = next(i for i in range(llamada, len(lineas)) if lineas[i].startswith(".end method"))
+    etiquetas = {lineas[i].strip() for i in range(ultima, llamada) if lineas[i].strip().startswith(":")}
+    saltos_de_afuera = [
+        i for i in range(inicio, fin)
+        if not ultima < i < llamada and any(re.search(rf"{re.escape(e)}\b", lineas[i]) for e in etiquetas)
+        and not lineas[i].strip().startswith(":")
+    ]
+    if lineas[ultima].strip() != f"const/4 {registro}, 0x0" or saltos_de_afuera:
+        raise SystemExit("reempaquetar.py: el código del DNS de IronFox cambió; revisar dns_maximo")
+    sangria = lineas[llamada][: len(lineas[llamada]) - len(lineas[llamada].lstrip())]
+    # El resultado se lee justo después de la llamada (move-result): el 0 va
+    # después de esa línea.
+    resultado = next(i for i in range(llamada + 1, llamada + 5) if lineas[i].strip() and not lineas[i].strip().startswith(".line"))
+    if not lineas[resultado].strip().startswith("move-result"):
+        raise SystemExit("reempaquetar.py: el código del DNS de IronFox cambió (sin move-result); revisar dns_maximo")
+    lineas[resultado + 1:resultado + 1] = [f"{sangria}const/4 {registro}, 0x0"]
+    lineas[llamada:llamada] = [f"{sangria}const/4 {registro}, 0x3"]
+    ajustes[0].write_text("\n".join(lineas), encoding="utf-8")
+
+    # Los otros .dex, tal cual vienen en el APK.
+    propia = ajustes[0].relative_to(carpeta).parts[0]
+    with zipfile.ZipFile(apk) as z:
+        for smali in carpeta.glob("smali*"):
+            if smali.name == propia:
+                continue
+            dex = "classes.dex" if smali.name == "smali" else smali.name.removeprefix("smali_") + ".dex"
+            shutil.rmtree(smali)
+            (carpeta / dex).write_bytes(z.read(dex))
+
+
 # ── Textos ─────────────────────────────────────────────────────────────────
 RE_MARCA = re.compile(r"IronFox(?: OSS)?")
 
@@ -94,6 +150,41 @@ ACERCA_DE = {"values": "%1$s is free software (MPL-2.0).", "values-es": "%1$s es
 RE_ACERCA_DE = re.compile(r'\n?\s*<string name="about_content">[^<]*</string>')
 
 
+# Bienvenida: sus tarjetas no se desplazan, y con letra grande lo que no entra
+# queda cortado (también en IronFox). La descripción de cada ajuste (abajo
+# del interruptor, en el espacio que sobra hasta «Continuar») queda vacía y lo
+# importante va en el subtítulo; los textos que más se cortaban, más cortos.
+DESCRIPCIONES_BIENVENIDA = ("ironfox_onboarding_install_ublock_description", "ironfox_onboarding_jit_enabled_description",
+                            "ironfox_onboarding_safe_browsing_enabled_description",
+                            "ironfox_onboarding_spoof_english_description")
+TEXTOS_BIENVENIDA = {
+    "values": {
+        "nova_onboarding_set_to_default_subtitle": "We protect your data and block companies that spy on your clicks.",
+        "ironfox_onboarding_doh_caption": "Encrypted DNS (DNS over HTTPS) for more privacy and security.",
+        "ironfox_onboarding_jit_enabled": "Enable JavaScript JIT",
+        "ironfox_onboarding_jit_enabled_caption": "Faster JavaScript, but less secure. Not recommended for most users.",
+        "ironfox_onboarding_safe_browsing_enabled_caption":
+            "Protection against dangerous websites with Google’s lists, without showing Google your IP.",
+        "ironfox_onboarding_spoof_english_caption":
+            "Websites see you in English (en-US), like most users: your language doesn’t set you apart.",
+    },
+    "values-es": {
+        "nova_onboarding_set_to_default_subtitle": "Protegemos tus datos y bloqueamos a las empresas que espían tus clics.",
+        "ironfox_onboarding_doh_caption": "DNS cifrado (DNS sobre HTTPS) para más privacidad y seguridad.",
+        "ironfox_onboarding_jit_enabled": "Habilitar JIT de JavaScript",
+        "ironfox_onboarding_jit_enabled_caption": "JavaScript más rápido, pero menos seguro. No recomendado para la mayoría.",
+        "ironfox_onboarding_safe_browsing_enabled_caption":
+            "Protege de sitios peligrosos con las listas de Google, sin mostrarle tu IP.",
+        "ironfox_onboarding_spoof_english_caption":
+            "Las páginas te ven en inglés (en-US), como a la mayoría: tu idioma no te distingue.",
+    },
+}
+
+
+def poner_texto(xml, nombre, valor):
+    return re.sub(rf'(<string name="{nombre}">)[^<]*(</string>)', lambda m: m.group(1) + valor + m.group(2), xml)
+
+
 def cambiar_textos(carpeta):
     cambiados = 0
     for archivo in (carpeta / "res").glob("values*/*.xml"):
@@ -107,6 +198,10 @@ def cambiar_textos(carpeta):
             # En los demás idiomas se borra: queda el texto en inglés.
             nuevo = RE_ACERCA_DE.sub(
                 lambda m: f'\n    <string name="about_content">{reemplazo}</string>' if reemplazo else "", nuevo)
+            for nombre in DESCRIPCIONES_BIENVENIDA:
+                nuevo = poner_texto(nuevo, nombre, "")
+            for nombre, valor in TEXTOS_BIENVENIDA.get(idioma, {}).items():
+                nuevo = poner_texto(nuevo, nombre, valor)
         if nuevo != texto:
             archivo.write_text(nuevo, encoding="utf-8")
             cambiados += 1
@@ -461,7 +556,8 @@ def main():
         temporal = tempfile.TemporaryDirectory()
         trabajo = Path(temporal.name)
     carpeta = trabajo / "desarmado"
-    correr("apktool", "d", "-s", "-f", "-o", carpeta, args.apk.resolve())
+    correr("apktool", "d", "-f", "-o", carpeta, args.apk.resolve())
+    dns_maximo(carpeta, args.apk.resolve())
     cambiar_paquete(carpeta)
     cambiar_textos(carpeta)
     cambiar_iconos(carpeta)

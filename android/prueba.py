@@ -139,11 +139,8 @@ def main():
     abrir_app()
     esperar(r"Welcome to Velbrum|Velbrum", 120)
     captura("bienvenida")
-    # IronFox pone sus valores por defecto (DNS cifrado en protección máxima
-    # con Quad9) en una tarea aparte al arrancar: si la bienvenida se pasa
-    # antes de que termine, queda la protección «Default» de Fenix. En un
-    # teléfono termina enseguida; en un emulador cargado puede tardar.
-    time.sleep(30)
+    # Sin esperar: el DNS cifrado tiene que empezar en protección máxima aunque
+    # la bienvenida se pase enseguida (reempaquetar.py, dns_maximo).
     vio_quad9 = False
     for _ in range(25):
         en_pantalla = textos()

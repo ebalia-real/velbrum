@@ -370,8 +370,9 @@ compiling Firefox for Android takes hours and tens of GB per release, so nothing
 is compiled: GitHub Actions (`.github/workflows/android.yml`) downloads IronFox's
 APKs, accepts them only if they're signed with IronFox's certificate (pinned in
 `android/versiones.env`; IronFox publishes no GPG signatures), changes the
-resources and Gecko's configuration with `android/reempaquetar.py` (the app's
-code is untouched), signs them with Velbrum's key and tests them in an emulator
+resources and Gecko's configuration with `android/reempaquetar.py` (in the
+app's code only one default changes: encrypted DNS starts at maximum
+protection, as IronFox intends but its welcome screens missed), signs them with Velbrum's key and tests them in an emulator
 with `android/prueba.py`: clean install, branding, Quad9, and a Chrome Web Store
 extension converted and installed. Its app ID is `io.github.ebalia_real.velbrum`.
 
