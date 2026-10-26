@@ -186,6 +186,10 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+    # El mismo grupo que la publicación de android.yml: nunca a la vez.
+    concurrency:
+      group: velbrum-publicar-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -201,5 +205,10 @@ jobs:
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
           version=${GITHUB_REF_NAME#v}
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
-            --title "Velbrum $version" --notes-file ../portable/NOTAS.md ./*
+          # android.yml puede haber creado ya el borrador con los APK.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ./* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+              --title "Velbrum $version" --notes-file ../portable/NOTAS.md ./*
+          fi

@@ -1,0 +1,18 @@
+[
+  {
+    "namespace": "velbrum",
+    "description": "Lo que la extensión de Velbrum para Android necesita de la aplicación (api/padre.js).",
+    "functions": [
+      {
+        "name": "instalar",
+        "type": "function",
+        "async": true,
+        "description": "Guarda un XPI en el perfil y abre la instalación con el cartel de la aplicación. Devuelve false si la instalación de complementos está apagada en Ajustes.",
+        "parameters": [
+          { "name": "datos", "type": "object", "isInstanceOf": "ArrayBuffer", "additionalProperties": true },
+          { "name": "nombre", "type": "string", "pattern": "^[a-z0-9][a-z0-9@._-]{0,119}\\.xpi$" }
+        ]
+      }
+    ]
+  }
+]

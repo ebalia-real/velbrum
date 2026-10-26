@@ -1,0 +1,122 @@
+# Velbrum para Android (ver android/ y README.md, «Android»). En cada
+# etiqueta vAAAA.MM.DD baja los APK oficiales de IronFox (firma verificada
+# contra su certificado, android/versiones.env), les pone la marca, los
+# ajustes y la extensión de Velbrum (android/reempaquetar.py), los firma con
+# la clave de Velbrum, los prueba en un emulador (android/prueba.py) y los
+# suma al borrador de la versión en GitHub.
+#
+# La clave de firma va en dos secretos del repositorio: VELBRUM_ANDROID_FIRMA
+# (el almacén .p12 en base64) y VELBRUM_ANDROID_FRASE. Sin ellos (forks, o a
+# mano sin etiqueta) se firma con una clave de prueba y no se publica nada.
+name: Velbrum para Android
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - name: Herramientas
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q librsvg2-bin imagemagick
+          . android/versiones.env
+          curl -sfL --retry 3 -o apktool.jar "https://github.com/iBotPeaches/Apktool/releases/download/v$APKTOOL/apktool_$APKTOOL.jar"
+          echo "$APKTOOL_SHA256  apktool.jar" | sha256sum -c -
+          sudo install -m 644 apktool.jar /usr/local/lib/apktool.jar
+          printf '#!/bin/sh\nexec java -jar /usr/local/lib/apktool.jar "$@"\n' | sudo tee /usr/local/bin/apktool >/dev/null
+          sudo chmod 755 /usr/local/bin/apktool
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;$BUILD_TOOLS" >/dev/null
+          echo "$ANDROID_HOME/build-tools/$BUILD_TOOLS" >> "$GITHUB_PATH"
+      - name: Bajar IronFox y verificar su firma
+        run: android/bajar.sh descargas
+      - name: Clave de firma
+        env:
+          FIRMA: ${{ secrets.VELBRUM_ANDROID_FIRMA }}
+        run: |
+          if [ -n "$FIRMA" ]; then
+            umask 077
+            echo "$FIRMA" | base64 -d > "$RUNNER_TEMP/velbrum-android.p12"
+            echo "CLAVE=--clave $RUNNER_TEMP/velbrum-android.p12" >> "$GITHUB_ENV"
+          elif [ "${GITHUB_REF_TYPE}" = tag ]; then
+            echo "Falta el secreto VELBRUM_ANDROID_FIRMA: una versión no se publica con la clave de prueba" >&2
+            exit 1
+          fi
+      - name: Armar los APK de Velbrum
+        env:
+          VELBRUM_ANDROID_FRASE: ${{ secrets.VELBRUM_ANDROID_FRASE }}
+        run: |
+          . android/versiones.env
+          version=$(cat VERSION)
+          mkdir -p paquetes
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            # shellcheck disable=SC2086
+            python3 -I android/reempaquetar.py --apk "descargas/ironfox-$IRONFOX-$abi.apk" \
+              --salida "paquetes/velbrum-$version-android-$abi.apk" --trabajo "trabajo-$abi" $CLAVE
+            rm -rf "trabajo-$abi/desarmado"
+          done
+          rm -f "$RUNNER_TEMP/velbrum-android.p12"
+          ls -la paquetes
+      - name: Emulador (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Probar en el emulador (instalación, marca, Quad9 y una extensión de Chrome)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: python3 android/prueba.py --apk "paquetes/velbrum-$(cat VERSION)-android-x86_64.apk" --capturas capturas-android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas-android
+          path: capturas-android
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-android
+          path: paquetes/*
+          compression-level: 0
+
+  publicar:
+    needs: apk
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    # El mismo grupo que la publicación de paquetes.yml: nunca a la vez.
+    concurrency:
+      group: velbrum-publicar-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: paquetes-android, path: paquetes }
+      - name: Sumar los APK al borrador de la versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd paquetes
+          sha256sum ./*.apk | sed 's| \./| |' > SHA256SUMS-android
+          cat SHA256SUMS-android
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ./* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+              --title "Velbrum ${GITHUB_REF_NAME#v}" --notes-file ../portable/NOTAS.md ./*
+          fi

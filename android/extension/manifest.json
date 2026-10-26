@@ -1,0 +1,40 @@
+{
+  "manifest_version": 2,
+  "name": "Velbrum",
+  "version": "@version@",
+  "description": "Instala en Velbrum para Android las extensiones de Chrome: desde la Chrome Web Store o la tienda de Edge.",
+  "browser_specific_settings": {
+    "gecko": { "id": "chrome@velbrum" }
+  },
+  "permissions": [
+    "https://clients2.google.com/*",
+    "https://*.googleusercontent.com/*",
+    "https://edge.microsoft.com/*",
+    "https://msedgeextensions.sf.tlu.dl.delivery.mp.microsoft.com/*",
+    "https://addons.mozilla.org/*"
+  ],
+  "background": { "scripts": ["convertir.js", "fondo.js"] },
+  "content_scripts": [
+    {
+      "matches": ["https://chromewebstore.google.com/*"],
+      "js": ["aviso.js", "tienda.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://microsoftedge.microsoft.com/addons/*"],
+      "js": ["aviso.js", "edge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "experiment_apis": {
+    "velbrum": {
+      "schema": "api/esquema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "api/padre.js",
+        "paths": [["velbrum"]]
+      }
+    }
+  },
+  "icons": { "48": "iconos/velbrum-48.png", "96": "iconos/velbrum-96.png" }
+}

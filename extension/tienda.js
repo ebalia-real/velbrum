@@ -5,9 +5,10 @@
 // seguimiento de la página están en aviso.js.
 
 const RE_DETALLE = /\/detail\/(?:[^/]+\/)?([a-p]{32})(?:[/?#]|$)/;
-// «Agregar a Chrome» en los idiomas más comunes de la tienda.
+// «Agregar a Chrome» en los idiomas más comunes de la tienda (en el celular,
+// «Agregar al escritorio»: Velbrum para Android).
 const RE_AGREGAR =
-  /^(agregar|añadir|add|ajouter|hinzufügen|adicionar|aggiungi|toevoegen|dodaj|lägg till|tilføj|legg til|lisää|přidat)\b.*\bchrome$/i;
+  /^(agregar|añadir|add|ajouter|hinzufügen|adicionar|aggiungi|toevoegen|dodaj|lägg till|tilføj|legg til|lisää|přidat)\b.*\b(chrome|desktop|escritorio|computadora|ordenador|computador|bureau)$/i;
 const RE_NO_GRACIAS = /^(no,? gracias|no,? thanks|non merci|nein,? danke|não,? obrigado)$/i;
 
 const idActual = () => location.pathname.match(RE_DETALLE)?.[1] ?? null;
