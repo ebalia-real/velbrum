@@ -38,6 +38,7 @@
 | 🔒 **DNS cifrado** | DNS por HTTPS solo con Quad9, con excepciones para tu red local. |
 | 🪶 **Modo liviano** | Menos procesos y caché para computadoras con poca memoria; se activa solo con menos de 4 GB de RAM. |
 | 🔄 **Actualizaciones con un clic** | Velbrum busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
+| 📱 **También en Android** | Los mismos ajustes y extensiones de Chrome en el teléfono, sobre IronFox (un Firefox para Android reforzado). |
 
 > Velbrum es un proyecto independiente: no está hecho ni respaldado por Mozilla,
 > LibreWolf, Mullvad ni el Tor Project. Firefox, LibreWolf, Mullvad, Tor y Chrome
@@ -82,6 +83,16 @@ GPG de LibreWolf, Tor y Mullvad, y prueba el resultado en los tres sistemas
 Para armarlos a mano: `portable/bajar.sh`, `portable/compilar.py`,
 `portable/empaquetar.py` y los scripts de `portable/linux`, `portable/windows` y
 `portable/macos` (ver el workflow).
+
+### Android
+
+Baja `…-android-arm64-v8a.apk` de la
+[última versión](https://github.com/ebalia-real/velbrum/releases/latest)
+(`armeabi-v7a` para teléfonos viejos de 32 bits, `x86_64` para emuladores y
+Chromebooks), ábrelo y deja que tu navegador o gestor de archivos instale
+aplicaciones. Android 8 o posterior. Se instala al lado de cualquier otro
+Firefox. En [Android](#android) está lo que cambia respecto de la versión para
+computadoras.
 
 ### NixOS
 
@@ -347,6 +358,106 @@ la carpeta de Velbrum:
 ```bash
 python3 -I pruebas/seguridad.py
 ```
+
+</details>
+
+## Android
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/android-inicio.png" alt="Velbrum para Android, pantalla de inicio"></td>
+    <td width="33%"><img src="docs/android-dns.png" alt="Bienvenida que ofrece Quad9 para el DNS cifrado"></td>
+    <td width="33%"><img src="docs/android-extension.png" alt="Una extensión de la Chrome Web Store convertida por Velbrum, con el cartel de instalación de Android"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Pantalla de inicio</sub></td>
+    <td align="center"><sub>DNS cifrado con Quad9</sub></td>
+    <td align="center"><sub><i>Agregar a Velbrum</i> en la Chrome Web Store</sub></td>
+  </tr>
+</table>
+
+Velbrum para Android es la versión oficial de [IronFox](https://ironfoxoss.org)
+(un Firefox para Android reforzado en privacidad, sucesor de Mull) con el
+nombre, los íconos, los ajustes y la extensión de las tiendas de Velbrum.
+LibreWolf no tiene versión para Android y compilar Firefox para Android lleva
+horas y decenas de GB por versión, así que no se compila nada: GitHub Actions
+(`.github/workflows/android.yml`) baja los APK de IronFox, los acepta solo si
+están firmados con el certificado de IronFox (fijado en
+`android/versiones.env`; IronFox no publica firmas GPG), cambia los recursos y
+la configuración de Gecko con `android/reempaquetar.py` (el código de la
+aplicación no se toca), los firma con la clave de Velbrum y los prueba en un
+emulador con `android/prueba.py`: instalación desde cero, marca, Quad9 y una
+extensión de la Chrome Web Store convertida e instalada. Su ID de aplicación es
+`io.github.ebalia_real.velbrum`.
+
+Como en la computadora:
+
+- **Los mismos ajustes**: `gecko/ajustes.cfg` más `android/ajustes-android.cfg`,
+  encima del refuerzo propio de IronFox. `resistFingerprinting`, DNS por HTTPS
+  con Quad9 (lo ofrece la bienvenida, con protección máxima), WebRTC sin IPs
+  locales y sin conexiones de fondo a Mozilla.
+- **Extensiones de Chrome y de Edge**: el botón de la tienda dice **Agregar a
+  Velbrum**. La extensión se convierte dentro del navegador
+  (`android/extension/convertir.js`: los mismos pasos y tablas que
+  `host/extensiones_chrome.py`, con la firma CRX3 del autor y el hash de la
+  tienda verificados) y se instala con el cartel de instalación de Android. Si
+  hay versión oficial para Firefox, se ofrece esa primero. Las extensiones
+  Manifest V3 reciben los sitios que piden al aceptar el cartel, como en Firefox
+  para computadoras (IronFox no se los da).
+
+Lo que cambia:
+
+- **Instalar complementos viene apagado** (un interruptor de seguridad de
+  IronFox). Se prende en Ajustes → Velbrum → Velbrum settings → Security →
+  *Allow installation of add-ons*; el navegador se reinicia. Velbrum te dice
+  dónde está la primera vez que intentas agregar una extensión.
+- **No hay ventana con Tor**: usa [Orbot](https://orbot.app) (modo VPN) o Tor
+  Browser para Android.
+- **Las extensiones convertidas no se actualizan solas**, y los `.crx`
+  descargados no se pueden abrir: para actualizar una, vuelve a tocar *Agregar a
+  Velbrum* en su tienda.
+- **No hay botón «Velbrum»**: el nivel de seguridad, los bordes de privacidad
+  (en un teléfono no hacen nada) y el modo liviano no aplican; lo demás está en
+  los ajustes de la aplicación.
+- **`resistFingerprinting`** está prendido, como en la computadora y en Tor
+  Browser. IronFox prefiere la protección contra huella de Firefox porque algunos
+  sitios se rompen; si pasa, `privacy.resistFingerprinting` se puede apagar en
+  `about:config`.
+- **Actualizaciones**: cada versión de Velbrum trae APK nuevos, armados sobre la
+  versión de IronFox de `android/versiones.env`. Android los instala encima del
+  anterior porque están firmados con la misma clave.
+  [Obtainium](https://obtainium.imranr.dev) puede seguir las versiones de GitHub.
+
+Los APK están firmados con una clave propia de Velbrum. El SHA-256 de su
+certificado es `VELBRUM_CERTIFICADO` en `android/versiones.env`;
+`reempaquetar.py` no termina si una versión se firma con otra clave. Para
+verificar una descarga: `apksigner verify --print-certs velbrum-….apk`.
+
+<details>
+<summary><b>Armar el APK a mano</b></summary>
+
+Necesita apktool, `rsvg-convert` (librsvg), ImageMagick, Java y las build-tools
+de Android (`zipalign`, `apksigner`) en el `PATH`.
+
+```bash
+android/bajar.sh descargas arm64-v8a
+python3 -I android/reempaquetar.py --apk descargas/ironfox-*-arm64-v8a.apk --salida velbrum.apk --clave ~/.ssh/velbrum-android.p12
+```
+
+`apksigner` pide la frase de la clave (o la lee de la variable
+`VELBRUM_ANDROID_FRASE`, como en GitHub Actions).
+Sin `--clave` se firma con una clave de prueba descartable: sirve para un
+emulador, no para publicar. Para probarlo, con un emulador abierto (Android 15,
+dispositivo `pixel_6`): `python3 android/prueba.py --apk velbrum.apk`.
+
+Para que GitHub Actions firme las versiones, la clave va en dos secretos del
+repositorio: `VELBRUM_ANDROID_FIRMA` (el archivo `.p12` en base64) y
+`VELBRUM_ANDROID_FRASE`. Sin ellos, una etiqueta falla en vez de publicar APK
+firmados con una clave de prueba.
+
+IronFox es MPL-2.0; su configuración de Gecko (Phoenix, dentro del `omni.ja` del
+APK) es GPL-3.0, y sus fuentes están en
+[gitlab.com/ironfox-oss/IronFox](https://gitlab.com/ironfox-oss/IronFox).
 
 </details>
 

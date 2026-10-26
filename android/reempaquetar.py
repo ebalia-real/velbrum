@@ -11,7 +11,8 @@ de Velbrum (android/extension), que va como complemento integrado.
 
 Uso: android/reempaquetar.py --apk IRONFOX.apk --salida VELBRUM.apk
          [--clave FIRMA.p12] [--trabajo CARPETA]
-La frase de la clave va en la variable VELBRUM_ANDROID_FRASE. Sin --clave se
+La frase de la clave la pide apksigner (o va en la variable
+VELBRUM_ANDROID_FRASE, como en GitHub Actions). Sin --clave se
 firma con una clave de prueba descartable (para el emulador, no para publicar).
 Necesita apktool, rsvg-convert, ImageMagick y las build-tools de Android
 (zipalign, apksigner) en el PATH.
@@ -404,8 +405,10 @@ def firmar(sin_firma, salida, clave, trabajo):
     alineado = trabajo / "alineado.apk"
     # -P 16: bibliotecas alineadas a páginas de 16 KB (Android 15+).
     correr("zipalign", "-f", "-P", "16", "4", sin_firma, alineado)
-    if clave:
-        frase = ["--ks-pass", "env:VELBRUM_ANDROID_FRASE"]
+    de_prueba = clave is None
+    if not de_prueba:
+        # Sin la variable, apksigner pide la frase en la terminal.
+        frase = ["--ks-pass", "env:VELBRUM_ANDROID_FRASE"] if os.environ.get("VELBRUM_ANDROID_FRASE") else []
     else:
         clave = trabajo / "clave-de-prueba.p12"
         if not clave.exists():
@@ -418,6 +421,16 @@ def firmar(sin_firma, salida, clave, trabajo):
     correr("apksigner", "sign", "--ks", clave, "--ks-type", "PKCS12", *frase, "--v4-signing-enabled", "false",
            "--out", salida, alineado)
     correr("apksigner", "verify", "--print-certs", salida)
+    # Con la clave de Velbrum, tiene que ser el certificado publicado
+    # (versiones.env), no otro (un secreto equivocado en GitHub, por ejemplo).
+    esperado = VERSIONES.get("VELBRUM_CERTIFICADO")
+    if not de_prueba and esperado:
+        salida_verify = subprocess.run(["apksigner", "verify", "--print-certs", str(salida)],
+                                       capture_output=True, text=True, check=True).stdout
+        firmantes = re.findall(r"certificate SHA-256 digest: ([0-9a-f]{64})", salida_verify)
+        if firmantes != [esperado]:
+            raise SystemExit(f"reempaquetar.py: la clave no es la de Velbrum ({firmantes}, se esperaba {esperado})")
+        print("certificado de Velbrum correcto")
 
 
 def main():
