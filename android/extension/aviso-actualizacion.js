@@ -2,15 +2,20 @@
 // (lo pone actualizar.js). Cerrado: la página no puede leerlo ni tocarlo. El
 // botón «Actualizar» es un enlace al APK en las versiones de Velbrum en
 // GitHub: la descarga la hace el navegador, y al abrirla Android pregunta si
-// actualizar.
+// actualizar. Sin id ni marcas en la página (que no sepa que es Velbrum) y sin
+// decirle a GitHub de qué sitio venís (noreferrer). La marca de «ya está» es
+// del mundo aislado de la extensión, que la página no ve.
 (async () => {
-  if (document.getElementById("velbrum-actualizacion")) return;
+  if (globalThis.velbrumAvisoActualizacion) return;
+  globalThis.velbrumAvisoActualizacion = true;
   const nueva = await browser.runtime.sendMessage({ accion: "actualizacion-datos" });
   const deGitHub = (url) => /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/download\/[^?#]+\.apk$/.test(url ?? "");
-  if (!nueva || !deGitHub(nueva.apk) || document.getElementById("velbrum-actualizacion")) return;
+  if (!nueva || !deGitHub(nueva.apk)) {
+    globalThis.velbrumAvisoActualizacion = false;
+    return;
+  }
 
   const anfitrion = document.createElement("div");
-  anfitrion.id = "velbrum-actualizacion";
   const sombra = anfitrion.attachShadow({ mode: "closed" });
   sombra.innerHTML = `
     <style>
@@ -34,6 +39,8 @@
   texto.textContent = `Hay una versión nueva de Velbrum: ${nueva.version} (tenés la ${nueva.actual}).`;
   const actualizar = sombra.querySelector(".actualizar");
   actualizar.href = nueva.apk;
+  actualizar.rel = "noreferrer";
+  actualizar.referrerPolicy = "no-referrer";
   actualizar.addEventListener("click", (evento) => {
     if (!evento.isTrusted) return evento.preventDefault();
     browser.runtime.sendMessage({ accion: "actualizacion-bajando" });

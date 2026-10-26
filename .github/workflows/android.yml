@@ -66,13 +66,22 @@ jobs:
           done
           rm -f "$RUNNER_TEMP/velbrum-android.p12"
           ls -la paquetes
+      # Se guardan antes de la prueba: nada que corra después (la acción del
+      # emulador es de terceros) puede cambiar lo que se publica.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-android
+          path: paquetes/*
+          compression-level: 0
       - name: Emulador (KVM)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Probar en el emulador (instalación, marca, Quad9 y una extensión de Chrome)
-        uses: reactivecircus/android-emulator-runner@v2
+        # Acción de terceros: fijada a un commit (v2.38.0), no a una etiqueta
+        # que se puede mover.
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
           target: google_apis
@@ -87,11 +96,6 @@ jobs:
           name: capturas-android
           path: capturas-android
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        with:
-          name: paquetes-android
-          path: paquetes/*
-          compression-level: 0
 
   publicar:
     needs: apk
@@ -107,6 +111,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with: { name: paquetes-android, path: paquetes }
+      - name: Los APK están firmados con la clave de Velbrum
+        run: |
+          . android/versiones.env
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          for apk in paquetes/*.apk; do
+            firmantes=$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p')
+            [ "$firmantes" = "$VELBRUM_CERTIFICADO" ] || { echo "$apk: no está firmado con la clave de Velbrum ($firmantes)" >&2; exit 1; }
+          done
       - name: Sumar los APK al borrador de la versión
         env:
           GH_TOKEN: ${{ github.token }}
