@@ -37,7 +37,7 @@
 | ⚙️ **Botón «Velbrum»** | Nivel de seguridad (Estándar, Más seguro, El más seguro), bordes de privacidad, siempre privado, modo liviano y solo extensiones firmadas, en la barra de herramientas. |
 | 🔒 **DNS cifrado** | DNS por HTTPS solo con Quad9, con excepciones para tu red local. |
 | 🪶 **Modo liviano** | Menos procesos y caché para computadoras con poca memoria; se activa solo con menos de 4 GB de RAM. |
-| 🔄 **Actualizaciones con un clic** | Velbrum busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
+| 🔄 **Actualizaciones con un clic** | Velbrum busca versiones nuevas **firmadas** una vez por día y, si aceptas, las instala (en NixOS, con la contraseña de administrador) y reinicia con tus pestañas. Los parches de seguridad de Firefox llegan con cada actualización del sistema; no compila nada. |
 | 📱 **También en Android** | Los mismos ajustes y extensiones de Chrome en el teléfono, sobre IronFox (un Firefox para Android reforzado). |
 
 > Velbrum es un proyecto independiente: no está hecho ni respaldado por Mozilla,
@@ -73,9 +73,10 @@ Actions con cada versión (`.github/workflows/paquetes.yml`): verifica las firma
 GPG de LibreWolf, Tor y Mullvad, y prueba el resultado en los tres sistemas
 (`portable/prueba.py`). Las diferencias con NixOS:
 
-- **Actualizaciones**: Velbrum avisa cuando hay una versión nueva y abre su página
-  para bajarla; no se instala sola. Las extensiones de Chrome sí se actualizan
-  solas, una vez por día, al abrir Velbrum.
+- **Actualizaciones**: Velbrum se actualiza solo, desde el navegador (ver
+  [Actualizaciones](#actualizaciones)). Los `.deb`, `.rpm` y de Arch los
+  actualiza el gestor de paquetes: Velbrum avisa y ofrece **Descargar**. Las
+  extensiones de Chrome se actualizan solas, una vez por día, al abrir Velbrum.
 - **El idioma de la interfaz** es el del sistema (LibreWolf trae todos).
 - **En Windows**, la ventana con Tor usa un puerto local en lugar de un socket
   privado (Windows no los tiene), con un circuito por sitio igual.
@@ -488,6 +489,20 @@ cómodo.
 - **Después de tus propias actualizaciones** (por ejemplo `nix flake update`
   para los parches de seguridad de Firefox), Velbrum nota la versión nueva y
   ofrece reiniciar.
+- **En Windows, macOS y otras distros de Linux** la actualización la hace el
+  mismo navegador (`marca/actualizador-velbrum.sys.mjs`), sin contraseña de
+  administrador: **Instalar y reiniciar** baja el paquete de tu sistema,
+  comprueba que sus sumas (`SHA256SUMS`) estén **firmadas con la clave de
+  Velbrum** (la que trae el Velbrum instalado) y que el paquete coincida, y
+  queda lista. **Reiniciar ahora** la instala y vuelve a abrir Velbrum con tus
+  pestañas; **Al cerrar Velbrum** la instala cuando lo cierres. La instala un
+  script (`portable/actualizar`) que espera a que Velbrum se cierre, reemplaza
+  los archivos del programa sin tocar tus datos (en Windows instalado, corre el
+  instalador nuevo sin preguntas) y, si algo falla, deja la versión anterior y
+  avisa al volver a abrir. Se actualizan el instalador y el portable de Windows,
+  Velbrum.app en macOS (instalada o portable), y el portable y el AppImage de
+  Linux. Los `.deb`, `.rpm` y de Arch, o si no se puede escribir en la carpeta
+  de Velbrum: **Descargar**.
 - **Requisitos**: la carpeta de Velbrum es un clon de git (como en
   [Instalación](#instalación)) sin cambios locales. El comando por defecto es
   `nixos-rebuild switch`, que en sistemas con flakes usa `/etc/nixos`.
@@ -525,6 +540,12 @@ cómodo.
    ```
 
 3. Sube el commit y la etiqueta: `git push origin main v2026.10.22`.
+4. Cuando GitHub Actions termine el borrador con los paquetes, firma sus sumas
+   (sin esto, Windows, macOS y Linux sin Nix no la instalan) y publícalo:
+
+   ```bash
+   portable/firmar-sumas.sh v2026.10.22
+   ```
 
 Quien tenga la clave de versiones puede publicar una actualización que todos
 los Velbrum instalan como root: protégela con una frase (`ssh-keygen -p -f

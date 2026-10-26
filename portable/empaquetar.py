@@ -8,6 +8,8 @@ LibreWolf de ese sistema (lo mismo que hace default.nix en NixOS):
   tiendas también en ventanas privadas);
 - la extensión de las tiendas (extension/), el host de mensajería nativa y el
   conversor de extensiones de Chrome (PyInstaller), Tor y el lanzador;
+- el actualizador: los scripts de portable/actualizar y la clave con la que
+  se firman las versiones (firmas/claves-permitidas);
 - en Linux, las fuentes de Mullvad Browser.
 
 Uso:
@@ -90,7 +92,8 @@ def marca_en_omni(resources, recursos):
                 shutil.copyfile(origen, omni / destino)
 
         subprocess.run([sys.executable, "-I", str(MARCA / "textos.py"), str(MARCA), str(omni), str(general)], check=True)
-        shutil.copyfile(MARCA / "ajustes-velbrum.sys.mjs", omni / "chrome/browser/content/browser/ajustes-velbrum.sys.mjs")
+        for modulo in ("ajustes-velbrum.sys.mjs", "actualizador-velbrum.sys.mjs"):
+            shutil.copyfile(MARCA / modulo, omni / "chrome/browser/content/browser" / modulo)
         subprocess.run([sys.executable, "-I", str(MARCA / "codigo.py"), str(omni), str(general)], check=True)
 
         comprimir(omni, resources / "browser" / "omni.ja")
@@ -165,6 +168,17 @@ def host(destino, host_dir):
     for nombre in ARCHIVOS_COMPAT:
         shutil.copyfile(AQUI / "host" / "compat" / nombre, compat / nombre)
     shutil.copyfile(AQUI / "extension" / "equivalentes.json", destino / "equivalentes.json")
+
+
+def actualizador(destino):
+    """Lo que usa marca/actualizador-velbrum.sys.mjs: los scripts que
+    reemplazan los archivos al cerrar Velbrum y las claves que pueden firmar
+    las versiones (solo las del espacio de nombres «velbrum-paquetes»)."""
+    (destino / "actualizar").mkdir(parents=True, exist_ok=True)
+    for nombre in ("aplicar.sh", "aplicar.ps1"):
+        shutil.copyfile(AQUI / "portable" / "actualizar" / nombre, destino / "actualizar" / nombre)
+    (destino / "firmas").mkdir(exist_ok=True)
+    shutil.copyfile(AQUI / "firmas" / "claves-permitidas", destino / "firmas" / "claves-permitidas")
 
 
 def tor(destino, tor_dir):
@@ -253,6 +267,7 @@ def main():
     extension(resources, args.recursos)
     host(recursos_velbrum / "host", args.host)
     tor(recursos_velbrum / "tor", args.tor)
+    actualizador(recursos_velbrum)
     if mullvad:
         fuentes(resources / "fuentes", mullvad)
     if args.sistema == "macos":

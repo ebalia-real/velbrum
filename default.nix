@@ -159,6 +159,7 @@ let
 
       python3 -I ${./marca/textos.py} ${./marca} omni toolkit
       cp ${./marca/ajustes-velbrum.sys.mjs} omni/chrome/browser/content/browser/ajustes-velbrum.sys.mjs
+      cp ${./marca/actualizador-velbrum.sys.mjs} omni/chrome/browser/content/browser/actualizador-velbrum.sys.mjs
       python3 -I ${./marca/codigo.py} omni toolkit
 
       mkdir -p $out/iconos

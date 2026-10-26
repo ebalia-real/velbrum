@@ -37,7 +37,7 @@
 | ⚙️ **Velbrum button** | Security level (Standard, Safer, Safest), privacy borders, always private, light mode and signed-extensions-only, right in the toolbar. |
 | 🔒 **Encrypted DNS** | DNS over HTTPS with Quad9 only, with exceptions for your local network. |
 | 🪶 **Light mode** | Fewer processes and less cache for computers with little memory; turns on by itself below 4 GB of RAM. |
-| 🔄 **Updates in one click** | Velbrum checks for new **signed** versions once a day and installs them if you accept (administrator password), then restarts with your tabs. Firefox security fixes arrive with every system update; nothing is compiled. |
+| 🔄 **Updates in one click** | Velbrum checks for new **signed** versions once a day and installs them if you accept (on NixOS, with the administrator password), then restarts with your tabs. Firefox security fixes arrive with every system update; nothing is compiled. |
 | 📱 **Android too** | The same settings and Chrome extensions on your phone, on top of IronFox (a hardened Firefox for Android). |
 
 > Velbrum is an independent project. It is not made or endorsed by Mozilla, LibreWolf,
@@ -72,9 +72,10 @@ for every release (`.github/workflows/paquetes.yml`): it checks the GPG
 signatures of LibreWolf, Tor and Mullvad, and tests the result on all three
 systems (`portable/prueba.py`). Differences from NixOS:
 
-- **Updates**: Velbrum tells you when there's a new version and opens its page
-  to download it; it doesn't install itself. Chrome extensions do update daily
-  when you open Velbrum.
+- **Updates**: Velbrum updates itself from inside the browser (see
+  [Updates](#updates)). `.deb`, `.rpm` and Arch packages are updated by your
+  package manager: Velbrum tells you and offers **Download**. Chrome extensions
+  update daily when you open Velbrum.
 - **The interface language** follows the system (LibreWolf ships them all).
 - **On Windows**, the Tor window uses a local port instead of a private socket
   (Windows has none), still with one circuit per site.
@@ -465,6 +466,20 @@ such as XFCE or LXQt); with 1 GB no modern browser is comfortable.
   actualizaciones* checks right away.
 - **After your own rebuilds** (for example `nix flake update` for Firefox
   security fixes), Velbrum notices the new version and offers to restart.
+- **On Windows, macOS and other Linux distros** the browser updates itself
+  (`marca/actualizador-velbrum.sys.mjs`), with no administrator password:
+  **Install and restart** downloads your system's package, checks that its
+  checksums (`SHA256SUMS`) are **signed with Velbrum's key** (the one shipped
+  in the installed Velbrum) and that the package matches, and gets it ready.
+  **Restart now** installs it and reopens Velbrum with your tabs; **When
+  closing Velbrum** installs it when you close it. A script
+  (`portable/actualizar`) waits for Velbrum to close, replaces the program files
+  without touching your data (on installed Windows it runs the new installer
+  silently) and, if anything fails, keeps the previous version and tells you
+  when Velbrum opens again. Updated this way: the Windows installer and
+  portable, Velbrum.app on macOS (installed or portable), and the Linux
+  portable and AppImage. `.deb`, `.rpm` and Arch packages, or a Velbrum folder
+  you can't write to: **Download**.
 - **Requirements**: the Velbrum folder is a git clone (as in
   [Installation](#installation)) without local changes. The default command is
   `nixos-rebuild switch`, which on flake systems uses `/etc/nixos`.
@@ -500,6 +515,13 @@ such as XFCE or LXQt); with 1 GB no modern browser is comfortable.
    ```
 
 3. Push the commit and the tag: `git push origin main v2026.10.22`.
+4. When GitHub Actions has finished the draft with the packages, sign its
+   checksums (without this, Windows, macOS and non-Nix Linux won't install it)
+   and publish it:
+
+   ```bash
+   portable/firmar-sumas.sh v2026.10.22
+   ```
 
 Whoever holds the release key can publish an update that every Velbrum
 installs as root: protect it with a passphrase (`ssh-keygen -p -f

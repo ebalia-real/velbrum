@@ -36,12 +36,18 @@ class Marionette:
     def _leer(self):
         largo = b""
         while not largo.endswith(b":"):
-            largo += self.s.recv(1)
+            largo += self._recibir(1)
         largo = int(largo[:-1])
         datos = b""
         while len(datos) < largo:
-            datos += self.s.recv(largo - len(datos))
+            datos += self._recibir(largo - len(datos))
         return json.loads(datos)
+
+    def _recibir(self, n):
+        parte = self.s.recv(n)
+        if not parte:
+            raise ConnectionError("el navegador cerró la conexión de Marionette")
+        return parte
 
     def cmd(self, nombre, params=None):
         self.n += 1

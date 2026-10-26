@@ -20,6 +20,10 @@ ChromeUtils.defineESModuleGetters(lazy, {
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   setInterval: "resource://gre/modules/Timer.sys.mjs",
 });
+// El actualizador de los paquetes para otros sistemas (no se usa en NixOS).
+ChromeUtils.defineLazyGetter(lazy, "paquete", () =>
+  ChromeUtils.importESModule("chrome://browser/content/actualizador-velbrum.sys.mjs")
+);
 
 const ID = "velbrum-ajustes";
 const PANEL = "velbrum-ajustes-panel";
@@ -263,12 +267,18 @@ function correrLanzador(argumentos) {
 }
 
 // ── Actualizaciones ──────────────────────────────────────────────────────
-// Una vez por día se fija en GitHub si hay una etiqueta vAAAA.MM.DD más nueva
-// que la versión instalada y lo ofrece en una barra. «Instalar y reiniciar»
-// corre el ayudante velbrum-actualizar con pkexec (contraseña de
-// administrador): él baja la versión, verifica su firma y hace el rebuild.
-// Después, o cuando un rebuild propio instala otra versión, ofrece reiniciar
-// con el lanzador instalado (así arranca la versión nueva) y las pestañas.
+// Una vez por día se fija en GitHub si hay una versión más nueva que la
+// instalada y lo ofrece en una barra con «Instalar y reiniciar».
+// - En NixOS (etiquetas vAAAA.MM.DD): corre el ayudante velbrum-actualizar
+//   con pkexec (contraseña de administrador), que baja la versión, verifica
+//   su firma y hace el rebuild. Después, o cuando un rebuild propio instala
+//   otra versión, ofrece reiniciar con el lanzador instalado (así arranca la
+//   versión nueva) y las pestañas.
+// - En los paquetes para Windows, macOS y Linux (la última versión publicada):
+//   actualizador-velbrum.sys.mjs baja el paquete, verifica la firma de sus
+//   sumas y lo instala al reiniciar (o al cerrar, con «Al cerrar»). Los .deb,
+//   .rpm y de Arch, o si no se puede escribir donde está instalado:
+//   «Descargar».
 const VERSION = Services.env.get("VELBRUM_VERSION") || "";
 const REPO = Services.env.get("VELBRUM_REPO_ACTUALIZACIONES") || "";
 const AYUDANTE = Services.env.get("VELBRUM_ACTUALIZADOR") || "";
@@ -281,7 +291,10 @@ const PREF_RECORDAR = "velbrum.actualizador.recordarDesde";
 const BARRA = "velbrum-actualizacion";
 const UN_DIA = 24 * 3600;
 let versionDisponible = null;
+// Paquetes: lo que devolvió actualizador-velbrum.sys.mjs buscar().
+let encontrada = null;
 let instalando = false;
+let relanzarAlCerrar = false;
 let reinicioOfrecido = false;
 
 const ahora = () => Math.floor(Date.now() / 1000);
@@ -315,11 +328,31 @@ function lanzadorInstalado() {
   }
 }
 
-// ¿Un rebuild instaló otra versión de Velbrum desde que se abrió esta?
+// ¿Un rebuild instaló otra versión de Velbrum desde que se abrió esta? (Solo
+// NixOS: en los paquetes lo que se instala es lo que preparó el actualizador.)
 function hayVersionInstaladaNueva() {
+  if (instalacionPaquete()) {
+    return false;
+  }
   const actual = Services.env.get("VELBRUM_LANZADOR");
   const instalado = lanzadorInstalado();
   return Boolean(actual && instalado && actual != instalado);
+}
+
+// Paquetes: cómo está instalado este Velbrum (null en NixOS).
+let instalacion;
+function instalacionPaquete() {
+  if (instalacion === undefined) {
+    instalacion = null;
+    if (!AYUDANTE && !CON_TOR) {
+      try {
+        instalacion = lazy.paquete.instalacion();
+      } catch (error) {
+        console.error("Velbrum: actualizador", error);
+      }
+    }
+  }
+  return instalacion;
 }
 
 async function buscarVersion(ventana, forzar) {
@@ -327,6 +360,14 @@ async function buscarVersion(ventana, forzar) {
     return null;
   }
   if (!forzar && ahora() - Services.prefs.getIntPref(PREF_ULTIMA, 0) < UN_DIA) {
+    return versionDisponible;
+  }
+  const inst = instalacionPaquete();
+  if (inst) {
+    const ultima = await lazy.paquete.buscar(ventana, REPO, inst);
+    Services.prefs.setIntPref(PREF_ULTIMA, ahora());
+    encontrada = ultima && masNueva(ultima.version, VERSION) ? ultima : null;
+    versionDisponible = encontrada?.version ?? null;
     return versionDisponible;
   }
   const respuesta = await ventana.fetch(`https://api.github.com/repos/${REPO}/tags?per_page=50`, {
@@ -360,12 +401,19 @@ async function barra(ventana, texto, botones) {
 }
 
 function reiniciarVelbrum() {
+  Services.prefs.setBoolPref("browser.sessionstore.resume_session_once", true);
+  // Paquetes con una versión nueva preparada: al cerrarse esta instancia la
+  // instala un script, que después vuelve a abrir Velbrum (ver iniciar).
+  if (instalacionPaquete() && lazy.paquete.hayPendiente()) {
+    relanzarAlCerrar = true;
+    Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+    return;
+  }
   // El lanzador instalado espera a que esta instancia se cierre y abre la
   // versión instalada; al abrir se recuperan las pestañas.
   const proceso = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
   proceso.init(archivoLocal(lanzadorInstalado() ?? Services.env.get("VELBRUM_LANZADOR")));
   proceso.runAsync(["--reiniciar"], 1);
-  Services.prefs.setBoolPref("browser.sessionstore.resume_session_once", true);
   Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
 }
 
@@ -415,20 +463,58 @@ function instalar(ventana, version) {
   });
 }
 
-function ofrecerActualizacion(ventana, version) {
-  // En NixOS la instala el ayudante (pkexec + rebuild); en los demás sistemas
-  // se baja el instalador o el portable nuevo de la página de la versión.
-  const primero = AYUDANTE
-    ? { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) }
-    : {
-        label: "Descargar",
-        accessKey: "D",
-        callback: () => {
-          ventana.openTrustedLinkIn(`https://github.com/${REPO}/releases/tag/v${version}`, "tab");
-          return false;
-        },
-      };
-  return barra(ventana, `Hay una versión nueva de Velbrum (${version}).`, [
+// Paquetes: baja y verifica la versión nueva; después ofrece reiniciar.
+async function instalarPaquete(ventana, version) {
+  if (instalando || !encontrada) {
+    return;
+  }
+  instalando = true;
+  try {
+    const aviso = await barra(ventana, `Bajando Velbrum ${version}…`, []);
+    await lazy.paquete.preparar(ventana, instalacionPaquete(), encontrada, texto => {
+      aviso.label = texto;
+    });
+    ofrecerPreparada(ventana, version);
+  } catch (error) {
+    console.error("Velbrum: actualización", error);
+    barra(ventana, `No se pudo actualizar Velbrum: ${error.message}.`, [
+      { label: "Intentar de nuevo", accessKey: "I", callback: () => instalarPaquete(ventana, version) },
+    ]);
+  } finally {
+    instalando = false;
+  }
+}
+
+function ofrecerPreparada(ventana, version) {
+  reinicioOfrecido = true;
+  return barra(ventana, `Velbrum ${version} está lista. Se instala al reiniciar.`, [
+    { label: "Reiniciar ahora", accessKey: "R", callback: () => reiniciarVelbrum() },
+    { label: "Al cerrar Velbrum", accessKey: "A", callback: () => false },
+  ]);
+}
+
+async function ofrecerActualizacion(ventana, version) {
+  // En NixOS la instala el ayudante (pkexec + rebuild) y en los paquetes, el
+  // actualizador; si no se puede, se baja de la página de la versión.
+  const inst = instalacionPaquete();
+  const descargar = {
+    label: "Descargar",
+    accessKey: "D",
+    callback: () => {
+      ventana.openTrustedLinkIn(`https://github.com/${REPO}/releases/tag/v${version}`, "tab");
+      return false;
+    },
+  };
+  let primero = descargar;
+  let mensaje = `Hay una versión nueva de Velbrum (${version}).`;
+  if (AYUDANTE) {
+    primero = { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalar(ventana, version) };
+  } else if (await lazy.paquete.sePuedeInstalar(inst)) {
+    primero = { label: "Instalar y reiniciar", accessKey: "I", callback: () => instalarPaquete(ventana, version) };
+  } else if (inst?.tipo == "sistema") {
+    mensaje += " Actualizala con el gestor de paquetes de tu sistema.";
+  }
+  return barra(ventana, mensaje, [
     primero,
     {
       label: "Ahora no",
@@ -454,6 +540,12 @@ async function revisarActualizaciones(forzar = false) {
     }
     return "Hay una versión nueva instalada: reiniciá Velbrum.";
   }
+  if (instalacionPaquete() && lazy.paquete.hayPendiente()) {
+    if (forzar) {
+      await ofrecerPreparada(ventana, versionDisponible);
+    }
+    return `Velbrum ${versionDisponible} está lista: reiniciá para instalarla.`;
+  }
   try {
     const version = await buscarVersion(ventana, forzar);
     if (version) {
@@ -466,6 +558,19 @@ async function revisarActualizaciones(forzar = false) {
   } catch (error) {
     console.warn("Velbrum: no pude buscar actualizaciones", error);
     return forzar ? "No se pudo buscar actualizaciones (¿hay internet?)." : "";
+  }
+}
+
+async function mostrarResultado() {
+  const r = await lazy.paquete.resultado();
+  const ventana = Services.wm.getMostRecentWindow("navigator:browser");
+  if (!r || !ventana) {
+    return;
+  }
+  if (r.error) {
+    barra(ventana, `No se pudo instalar Velbrum ${r.version}: ${r.error}. Sigue la versión ${VERSION}.`, []);
+  } else if (r.version == VERSION) {
+    barra(ventana, `Velbrum se actualizó a la versión ${VERSION}.`, []);
   }
 }
 
@@ -901,6 +1006,17 @@ export function iniciar(ventana) {
       aplicarLiviano(true);
     }
     extensionesEnPrivado().catch((error) => console.error("Velbrum: extensiones en privado", error));
+    // Paquetes: cómo terminó la última actualización, y la versión que quedó
+    // preparada se instala al cerrar (cuando ya es seguro que se cierra: si
+    // se cancela, por ejemplo en «¿Cerrar las pestañas?», no se arranca nada).
+    if (instalacionPaquete()) {
+      lazy.setTimeout(() => mostrarResultado().catch(error => console.error("Velbrum:", error)), 2000);
+      Services.obs.addObserver((_sujeto, _tema, datos) => {
+        if (datos != "restart" && lazy.paquete.hayPendiente()) {
+          lazy.paquete.aplicar(relanzarAlCerrar);
+        }
+      }, "quit-application");
+    }
     // Actualizaciones: al minuto de abrir y después cada 3 horas (la búsqueda
     // en GitHub es una vez por día).
     lazy.setTimeout(() => revisarActualizaciones(), 60 * 1000);
